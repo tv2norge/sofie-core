@@ -3,7 +3,7 @@ import { getCurrentTime, getRandomId } from '../lib'
 import { PeripheralDeviceCommands, PeripheralDeviceCommandId } from '../collections/PeripheralDeviceCommands'
 import { PubSub, meteorSubscribe } from './pubsub'
 import { DeviceConfigManifest } from './deviceConfig'
-import { TSR } from '@sofie-automation/blueprints-integration'
+import { IngestPlaylist, TSR } from '@sofie-automation/blueprints-integration'
 import { PartInstanceId } from '../collections/PartInstances'
 import { PeripheralDeviceId, PeripheralDevice } from '../collections/PeripheralDevices'
 import { PieceInstanceId } from '../collections/PieceInstances'
@@ -93,6 +93,15 @@ export interface NewPeripheralDeviceAPI {
 		resolveDuration: number
 	)
 
+	dataPlaylistList(deviceId: PeripheralDeviceId, deviceToken: string): Promise<string[]>
+	dataPlaylistGet(
+		deviceId: PeripheralDeviceId,
+		deviceToken: string,
+		playlistExternalId: string
+	): Promise<IngestPlaylist>
+	dataPlaylistDelete(deviceId: PeripheralDeviceId, deviceToken: string, playlistExternalId: string): Promise<void>
+	dataPlaylistCreate(deviceId: PeripheralDeviceId, deviceToken: string, ingestPlaylist: IngestPlaylist): Promise<void>
+	dataPlaylistUpdate(deviceId: PeripheralDeviceId, deviceToken: string, ingestPlaylist: IngestPlaylist): Promise<void>
 	dataRundownList(deviceId: PeripheralDeviceId, deviceToken: string): Promise<string[]>
 	dataRundownGet(deviceId: PeripheralDeviceId, deviceToken: string, rundownExternalId: string): Promise<IngestRundown>
 	dataRundownDelete(deviceId: PeripheralDeviceId, deviceToken: string, rundownExternalId: string): Promise<void>
@@ -325,6 +334,11 @@ export enum PeripheralDeviceAPIMethods {
 	'mosRoReadyToAir' = 'peripheralDevice.mos.roReadyToAir',
 	'mosRoFullStory' = 'peripheralDevice.mos.roFullStory',
 
+	'dataPlaylistList' = 'peripheralDevice.playlist.playlistList',
+	'dataPlaylistGet' = 'peripheralDevice.playlist.playlistGet',
+	'dataPlaylistDelete' = 'peripheralDevice.playlist.playlistDelete',
+	'dataPlaylistCreate' = 'peripheralDevice.playlist.playlistCreate',
+	'dataPlaylistUpdate' = 'peripheralDevice.playlist.playlistUpdate',
 	'dataRundownList' = 'peripheralDevice.rundown.rundownList',
 	'dataRundownGet' = 'peripheralDevice.rundown.rundownGet',
 	'dataRundownDelete' = 'peripheralDevice.rundown.rundownDelete',

@@ -1,7 +1,7 @@
 import * as _ from 'underscore'
 import { Meteor } from 'meteor/meteor'
 import { saveIntoDb, getCurrentTime, protectString, unprotectString } from '../../../lib/lib'
-import { IngestRundown, IngestSegment, IngestPart } from '@sofie-automation/blueprints-integration'
+import { IngestRundown, IngestSegment, IngestPart, IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import {
 	IngestDataCacheObj,
 	IngestDataCache,
@@ -10,14 +10,55 @@ import {
 	IngestDataCacheObjRundown,
 	IngestDataCacheObjSegment,
 	IngestDataCacheObjId,
+	IngestDataCacheObjRundownPlaylist,
 } from '../../../lib/collections/IngestDataCache'
-import { getSegmentId, getPartId } from './lib'
+import { getSegmentId, getPartId, getRundownId } from './lib'
 import { logger } from '../../../lib/logging'
 import { RundownId } from '../../../lib/collections/Rundowns'
 import { SegmentId } from '../../../lib/collections/Segments'
 import { PartId } from '../../../lib/collections/Parts'
 import { profiler } from '../profiler'
+import { RundownPlaylistId } from '../../../lib/collections/RundownPlaylists'
+import { Studio } from '../../../lib/collections/Studios'
 
+export function loadCachedRundownPlaylistData(
+	playlistId: RundownPlaylistId,
+	playlistExternalId: string
+): LocalIngestPlaylist {
+	const span = profiler.startSpan('ingest.ingestCache.loadCachedRundownPlaylistData')
+
+	const cacheEntries = IngestDataCache.find({ rundownPlaylistId: playlistId }).fetch()
+
+	const cachedPlaylist = cacheEntries.find((e) => e.type === IngestCacheType.PLAYLIST)
+	if (!cachedPlaylist)
+		throw new Meteor.Error(404, `Playlist "${playlistId}", (${playlistExternalId}) has no cached ingest data`)
+
+	const ingestPlaylist = cachedPlaylist.data as LocalIngestPlaylist
+	ingestPlaylist.modified = cachedPlaylist.modified
+
+	const cachedRundowns = cacheEntries.filter(
+		(entry) => entry.type === IngestCacheType.RUNDOWN
+	) as IngestDataCacheObjRundown[]
+	const rundownsMap = _.groupBy(cachedRundowns, (e) => e.rundownId)
+	_.each(rundownsMap, (objs) => {
+		const rundownEntry = objs.find((e) => e.type === IngestCacheType.RUNDOWN)
+		if (rundownEntry) {
+			const ingestRundown = loadCachedRundownData(rundownEntry.rundownId, rundownEntry.data.externalId)
+			ingestPlaylist.rundowns.push(ingestRundown)
+		}
+	})
+
+	ingestPlaylist.rundowns.sort((a, b) => {
+		if (a._rank === undefined && b._rank === undefined) return 0
+		if (a._rank === undefined) return -1
+		if (b._rank === undefined) return 1
+
+		return a._rank - b._rank
+	})
+
+	span?.end()
+	return ingestPlaylist
+}
 export function loadCachedRundownData(rundownId: RundownId, rundownExternalId: string): LocalIngestRundown {
 	const span = profiler.startSpan('ingest.ingestCache.loadCachedRundownData')
 
@@ -30,7 +71,10 @@ export function loadCachedRundownData(rundownId: RundownId, rundownExternalId: s
 	const ingestRundown = cachedRundown.data as LocalIngestRundown
 	ingestRundown.modified = cachedRundown.modified
 
-	const segmentMap = _.groupBy(cacheEntries, (e) => e.segmentId)
+	const cachedSegmentsAndParts = cacheEntries.filter(
+		(entry) => entry.type === IngestCacheType.SEGMENT || entry.type === IngestCacheType.PART
+	) as Array<IngestDataCacheObjSegment | IngestDataCacheObjPart>
+	const segmentMap = _.groupBy(cachedSegmentsAndParts, (e) => e.segmentId)
 	_.each(segmentMap, (objs) => {
 		const segmentEntry = objs.find((e) => e.type === IngestCacheType.SEGMENT)
 		if (segmentEntry) {
@@ -126,9 +170,23 @@ export function loadIngestDataCachePart(
 	return partEntry
 }
 
-export function saveRundownCache(rundownId: RundownId, ingestRundown: LocalIngestRundown) {
+export function savePlaylistCacahe(studio: Studio, playlistId: RundownPlaylistId, ingestPlaylist: LocalIngestPlaylist) {
+	const cacheEntries: IngestDataCacheObj[] = generateCacheForRundownPlaylist(studio, playlistId, ingestPlaylist)
+	saveIntoDb<IngestDataCacheObj, IngestDataCacheObj>(
+		IngestDataCache,
+		{
+			rundownPlaylistId: playlistId,
+		},
+		cacheEntries
+	)
+}
+export function saveRundownCache(
+	rundownPlaylistId: RundownPlaylistId,
+	rundownId: RundownId,
+	ingestRundown: LocalIngestRundown
+) {
 	// cache the Data:
-	const cacheEntries: IngestDataCacheObj[] = generateCacheForRundown(rundownId, ingestRundown)
+	const cacheEntries: IngestDataCacheObj[] = generateCacheForRundown(rundownPlaylistId, rundownId, ingestRundown)
 	saveIntoDb<IngestDataCacheObj, IngestDataCacheObj>(
 		IngestDataCache,
 		{
@@ -156,6 +214,9 @@ export function saveSegmentCache(rundownId: RundownId, segmentId: SegmentId, ing
 interface LocalIngestBase {
 	modified: number
 }
+export interface LocalIngestPlaylist extends IngestPlaylist, LocalIngestBase {
+	rundowns: LocalIngestRundown[]
+}
 export interface LocalIngestRundown extends IngestRundown, LocalIngestBase {
 	segments: LocalIngestSegment[]
 }
@@ -163,8 +224,18 @@ export interface LocalIngestSegment extends IngestSegment, LocalIngestBase {
 	parts: LocalIngestPart[]
 }
 export interface LocalIngestPart extends IngestPart, LocalIngestBase {}
+export function isLocalIngestRundownPlaylist(o: IngestPlaylist | LocalIngestPlaylist): o is LocalIngestPlaylist {
+	return !!o['modified']
+}
 export function isLocalIngestRundown(o: IngestRundown | LocalIngestRundown): o is LocalIngestRundown {
 	return !!o['modified']
+}
+export function makeNewIngestRundownPlaylist(ingestPlaylist: IngestPlaylist): LocalIngestPlaylist {
+	return {
+		...ingestPlaylist,
+		rundowns: _.map(ingestPlaylist.rundowns, makeNewIngestRundown),
+		modified: getCurrentTime(),
+	}
 }
 export function makeNewIngestRundown(ingestRundown: IngestRundown): LocalIngestRundown {
 	return {
@@ -201,13 +272,42 @@ export function updateIngestRundownWithData(
 	return newIngestRundown
 }
 
-function generateCacheForRundown(rundownId: RundownId, ingestRundown: LocalIngestRundown): IngestDataCacheObj[] {
+function generateCacheForRundownPlaylist(
+	studio: Studio,
+	rundownPlaylistId: RundownPlaylistId,
+	ingestPlaylist: LocalIngestPlaylist
+): IngestDataCacheObj[] {
+	const cacheEntries: IngestDataCacheObj[] = []
+	const playlist: IngestDataCacheObjRundownPlaylist = {
+		_id: protectString<IngestDataCacheObjId>(unprotectString(rundownPlaylistId)),
+		type: IngestCacheType.PLAYLIST,
+		rundownPlaylistId,
+		modified: ingestPlaylist.modified,
+		data: {
+			..._.omit(ingestPlaylist, 'modified'),
+			rundowns: [],
+		},
+	}
+	cacheEntries.push(playlist)
+	_.each(ingestPlaylist.rundowns, (rundown) =>
+		cacheEntries.push(
+			...generateCacheForRundown(rundownPlaylistId, getRundownId(studio, rundown.externalId), rundown)
+		)
+	)
+	return cacheEntries
+}
+function generateCacheForRundown(
+	rundownPlaylistId: RundownPlaylistId,
+	rundownId: RundownId,
+	ingestRundown: LocalIngestRundown
+): IngestDataCacheObj[] {
 	// cache the Data
 	const cacheEntries: IngestDataCacheObj[] = []
 	const rundown: IngestDataCacheObjRundown = {
 		_id: protectString<IngestDataCacheObjId>(unprotectString(rundownId)),
 		type: IngestCacheType.RUNDOWN,
-		rundownId: rundownId,
+		rundownId,
+		rundownPlaylistId,
 		modified: ingestRundown.modified,
 		data: {
 			..._.omit(ingestRundown, 'modified'),

@@ -32,6 +32,7 @@ import {
 	BlueprintSyncIngestPartInstance,
 	ShowStyleBlueprintManifest,
 	BlueprintSyncIngestNewData,
+	IngestPlaylist,
 } from '@sofie-automation/blueprints-integration'
 import { logger } from '../../../lib/logging'
 import { Studio, Studios } from '../../../lib/collections/Studios'
@@ -86,6 +87,11 @@ import {
 	makeNewIngestPart,
 	makeNewIngestRundown,
 	isLocalIngestRundown,
+	loadCachedRundownPlaylistData,
+	makeNewIngestRundownPlaylist,
+	LocalIngestPlaylist,
+	isLocalIngestRundownPlaylist,
+	savePlaylistCacahe as savePlaylistCache,
 } from './ingestCache'
 import {
 	getRundownId,
@@ -118,6 +124,7 @@ import {
 	getSelectedPartInstancesFromCache,
 	getRundownsSegmentsAndPartsFromCache,
 	removeRundownFromCache,
+	removeRundownPlaylistFromCache,
 } from '../playout/lib'
 import { PartInstances, PartInstance } from '../../../lib/collections/PartInstances'
 import { MethodContext } from '../../../lib/api/methods'
@@ -130,7 +137,7 @@ import {
 	RundownBaselineAdLibActions,
 	RundownBaselineAdLibAction,
 } from '../../../lib/collections/RundownBaselineAdLibActions'
-import { removeEmptyPlaylists } from '../rundownPlaylist'
+import { getPlaylistIdFromExternalId, removeEmptyPlaylists } from '../rundownPlaylist'
 import { profiler } from '../profiler'
 import {
 	fetchPiecesThatMayBeActiveForPart,
@@ -169,6 +176,57 @@ interface SegmentChanges {
 }
 
 export namespace RundownInput {
+	// Get info on the current playlists from this device:
+	export function dataPlaylistList(context: MethodContext, deviceId: PeripheralDeviceId, deviceToken: string) {
+		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
+		logger.info('dataPlaylistList')
+		return listIngestPlaylists(peripheralDevice)
+	}
+	export function dataPlaylistGet(
+		context: MethodContext,
+		deviceId: PeripheralDeviceId,
+		deviceToken: string,
+		playlistExternalId: string
+	) {
+		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
+		logger.info('dataPlaylistGet', playlistExternalId)
+		check(playlistExternalId, String)
+		return getIngestPlaylist(peripheralDevice, playlistExternalId)
+	}
+	// Delete, Create & Update Playlist (and it's contents):
+	export function dataPlaylistDelete(
+		context: MethodContext,
+		deviceId: PeripheralDeviceId,
+		deviceToken: string,
+		playlistExternalId: string
+	) {
+		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
+		logger.info('dataPlaylistDelete', playlistExternalId)
+		check(playlistExternalId, String)
+		handleRemovedPlaylist(peripheralDevice, playlistExternalId)
+	}
+	export function dataPlaylistCreate(
+		context: MethodContext,
+		deviceId: PeripheralDeviceId,
+		deviceToken: string,
+		ingestPlaylist: IngestPlaylist
+	) {
+		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
+		logger.info('dataPlaylistCreate', ingestPlaylist)
+		check(ingestPlaylist, Object)
+		handleUpdatedPlaylist(undefined, peripheralDevice, ingestPlaylist, 'dataPlaylistCreate')
+	}
+	export function dataPlaylistUpdate(
+		context: MethodContext,
+		deviceId: PeripheralDeviceId,
+		deviceToken: string,
+		ingestPlaylist: IngestPlaylist
+	) {
+		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
+		logger.info('dataPlaylistUpdate', ingestPlaylist)
+		check(ingestPlaylist, Object)
+		handleUpdatedPlaylist(undefined, peripheralDevice, ingestPlaylist, 'dataPlaylistUpdate')
+	}
 	// Get info on the current rundowns from this device:
 	export function dataRundownList(context: MethodContext, deviceId: PeripheralDeviceId, deviceToken: string) {
 		const peripheralDevice = checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
@@ -334,6 +392,34 @@ export namespace RundownInput {
 	}
 }
 
+function listIngestPlaylists(peripheralDevice: PeripheralDevice): string[] {
+	return RundownPlaylists.find(
+		{
+			peripheralDeviceId: peripheralDevice._id,
+		},
+		{
+			fields: {
+				externalId: 1,
+			},
+		}
+	)
+		.fetch()
+		.map((p) => p.externalId)
+}
+
+function getIngestPlaylist(peripheralDevice: PeripheralDevice, playlistExternalId: string): IngestPlaylist {
+	const playlist = RundownPlaylists.findOne({
+		peripheralDeviceId: peripheralDevice._id,
+		externalId: playlistExternalId,
+	})
+
+	if (!playlist) {
+		throw new Meteor.Error(404, `Rundown playlist ${playlistExternalId} does not exist`)
+	}
+
+	return loadCachedRundownPlaylistData(playlist._id, playlistExternalId)
+}
+
 function getIngestRundown(peripheralDevice: PeripheralDevice, rundownExternalId: string): IngestRundown {
 	const rundown = Rundowns.findOne({
 		peripheralDeviceId: peripheralDevice._id,
@@ -375,6 +461,65 @@ function listIngestRundowns(peripheralDevice: PeripheralDevice): string[] {
 	}).fetch()
 
 	return rundowns.map((r) => r.externalId)
+}
+
+export function handleRemovedPlaylist(peripheralDevice: PeripheralDevice, playlistExternalId: string) {
+	const span = profiler.startSpan('rundownInput.handleRemovedPlaylist')
+
+	const studio = getStudioFromDevice(peripheralDevice)
+	const rundownPlaylistId = getPlaylistIdFromExternalId(studio._id, playlistExternalId)
+
+	rundownPlaylistSyncFunction(rundownPlaylistId, RundownSyncFunctionPriority.INGEST, 'handleRemovedPlaylist', () => {
+		const playlist = RundownPlaylists.findOne(rundownPlaylistId)
+
+		if (!playlist) {
+			throw new Meteor.Error(`Playlist ${rundownPlaylistId} (${playlistExternalId}) does not exist`)
+		}
+
+		const cache = waitForPromise(initCacheForRundownPlaylist(playlist))
+
+		if (playlist.active) {
+			throw new Meteor.Error(
+				`Not allowing removal of active rundown playlist ${rundownPlaylistId} (${playlistExternalId})`
+			)
+		}
+
+		removeRundownPlaylistFromCache(cache, playlist)
+
+		waitForPromise(cache.saveAllToDatabase())
+
+		span?.end()
+	})
+}
+
+export function handleUpdatedPlaylist(
+	studio0: Studio | undefined,
+	peripheralDevice: PeripheralDevice | undefined,
+	ingestPlaylist: IngestPlaylist,
+	dataSource: string
+) {
+	if (!peripheralDevice && !studio0) {
+		throw new Meteor.Error(500, `A PeripheralDevice or Studio is required to update a rundown`)
+	}
+
+	const studio = studio0 ?? getStudioFromDevice(peripheralDevice as PeripheralDevice)
+	const playlistId = getPlaylistIdFromExternalId(studio._id, ingestPlaylist.externalId)
+	if (peripheralDevice && peripheralDevice.studioId !== studio._id) {
+		throw new Meteor.Error(
+			500,
+			`PeripheralDevice "${peripheralDevice._id}" does not belong to studio "${studio._id}"`
+		)
+	}
+
+	return rundownPlaylistSyncFunction(playlistId, RundownSyncFunctionPriority.INGEST, 'handleUpdatedRundown', () =>
+		handleUpdatedRundownPlaylistInner(
+			studio,
+			playlistId,
+			makeNewIngestRundownPlaylist(ingestPlaylist),
+			dataSource,
+			peripheralDevice
+		)
+	)
 }
 
 export function handleRemovedRundown(peripheralDevice: PeripheralDevice, rundownExternalId: string) {
@@ -455,11 +600,55 @@ export function handleUpdatedRundown(
 	const existingRundown = Rundowns.findOne(rundownId)
 	const playlistId = existingRundown ? existingRundown.playlistId : protectString('newPlaylist')
 	return rundownPlaylistSyncFunction(playlistId, RundownSyncFunctionPriority.INGEST, 'handleUpdatedRundown', () =>
-		handleUpdatedRundownInner(studio, rundownId, makeNewIngestRundown(ingestRundown), dataSource, peripheralDevice)
+		handleUpdatedRundownInner(
+			studio,
+			playlistId,
+			rundownId,
+			makeNewIngestRundown(ingestRundown),
+			dataSource,
+			peripheralDevice
+		)
 	)
+}
+export function handleUpdatedRundownPlaylistInner(
+	studio: Studio,
+	playlistId: RundownPlaylistId,
+	ingestPlaylist: IngestPlaylist | LocalIngestPlaylist,
+	dataSource?: string,
+	peripheralDevice?: PeripheralDevice
+) {
+	const existingDbPlaylist = RundownPlaylists.findOne(playlistId)
+
+	updateRundownPlaylistAndSaveCache(
+		studio,
+		playlistId,
+		existingDbPlaylist,
+		ingestPlaylist,
+		dataSource,
+		peripheralDevice
+	)
+}
+export function updateRundownPlaylistAndSaveCache(
+	studio: Studio,
+	playlistId: RundownPlaylistId,
+	existingDbPlaylist: RundownPlaylist | undefined,
+	ingestPlaylist: IngestPlaylist | LocalIngestPlaylist,
+	dataSource?: string,
+	peripheralDevice?: PeripheralDevice
+) {
+	logger.info((existingDbPlaylist ? 'Updating' : 'Adding') + ' rundown playlist ' + playlistId)
+
+	const newIngestRundown = isLocalIngestRundownPlaylist(ingestPlaylist)
+		? ingestPlaylist
+		: makeNewIngestRundownPlaylist(ingestPlaylist)
+
+	savePlaylistCache(studio, playlistId, newIngestRundown)
+
+	updateRundownPlaylistFromIngestData(studio, existingDbPlaylist, ingestPlaylist, dataSource, peripheralDevice)
 }
 export function handleUpdatedRundownInner(
 	studio: Studio,
+	rundownPlaylistId: RundownPlaylistId,
 	rundownId: RundownId,
 	ingestRundown: IngestRundown | LocalIngestRundown,
 	dataSource?: string,
@@ -468,10 +657,19 @@ export function handleUpdatedRundownInner(
 	const existingDbRundown = Rundowns.findOne(rundownId)
 	if (!canBeUpdated(existingDbRundown)) return
 
-	updateRundownAndSaveCache(studio, rundownId, existingDbRundown, ingestRundown, dataSource, peripheralDevice)
+	updateRundownAndSaveCache(
+		studio,
+		rundownPlaylistId,
+		rundownId,
+		existingDbRundown,
+		ingestRundown,
+		dataSource,
+		peripheralDevice
+	)
 }
 export function updateRundownAndSaveCache(
 	studio: Studio,
+	rundownPlaylistId: RundownPlaylistId,
 	rundownId: RundownId,
 	existingDbRundown: Rundown | undefined,
 	ingestRundown: IngestRundown | LocalIngestRundown,
@@ -482,7 +680,7 @@ export function updateRundownAndSaveCache(
 
 	const newIngestRundown = isLocalIngestRundown(ingestRundown) ? ingestRundown : makeNewIngestRundown(ingestRundown)
 
-	saveRundownCache(rundownId, newIngestRundown)
+	saveRundownCache(rundownPlaylistId, rundownId, newIngestRundown)
 
 	updateRundownFromIngestData(studio, existingDbRundown, ingestRundown, dataSource, peripheralDevice)
 }
@@ -501,6 +699,100 @@ export function regenerateRundown(rundownId: RundownId) {
 	const dataSource = 'regenerate'
 
 	updateRundownFromIngestData(studio, existingDbRundown, ingestRundown, dataSource, undefined)
+
+	span?.end()
+}
+
+function updateRundownPlaylistFromIngestData(
+	studio: Studio,
+	existingDbPlaylist: RundownPlaylist | undefined,
+	ingestPlaylist: IngestPlaylist,
+	dataSource?: string,
+	peripheralDevice?: PeripheralDevice
+) {
+	const span = profiler.startSpan('ingest.rundownInput.updateRundownPlaylistFromIngestData')
+
+	if (existingDbPlaylist && existingDbPlaylist.active) {
+		logger.warn(`Blocking updating playlist "${existingDbPlaylist._id}" because it is active`)
+		return false
+	}
+
+	const playlistId = getPlaylistIdFromExternalId(studio._id, ingestPlaylist.externalId)
+
+	const dbRundownPlaylistData: DBRundownPlaylist = _.extend(
+		_.clone(existingDbPlaylist) || {},
+		_.omit(
+			literal<DBRundownPlaylist>({
+				...existingDbPlaylist,
+				_id: playlistId,
+				externalId: ingestPlaylist.externalId,
+				organizationId: studio.organizationId,
+				studioId: studio._id,
+				name: ingestPlaylist.name,
+				loop: ingestPlaylist.loop,
+
+				currentPartInstanceId: null,
+				nextPartInstanceId: null,
+				previousPartInstanceId: null,
+
+				// omit the below fields:
+				created: 0, // omitted, set later, below
+				modified: 0, // omitted, set later, below
+				peripheralDeviceId: protectString(''), // omitted, set later, below
+			}),
+			['created', 'modified', 'peripheralDeviceId']
+		)
+	)
+
+	if (peripheralDevice) {
+		dbRundownPlaylistData.peripheralDeviceId = peripheralDevice._id
+	}
+
+	saveIntoDb(
+		RundownPlaylists,
+		{
+			_id: dbRundownPlaylistData._id,
+		},
+		[dbRundownPlaylistData],
+		{
+			beforeInsert: (o) => {
+				o.modified = getCurrentTime()
+				o.created = getCurrentTime()
+				return o
+			},
+			beforeUpdate: (o) => {
+				o.modified = getCurrentTime()
+				return o
+			},
+		}
+	)
+
+	const anyErrors: Array<{ message?: string }> = []
+	for (const rundown of ingestPlaylist.rundowns) {
+		const rundownId = getRundownId(studio, rundown.externalId)
+		const existingDbRundown = Rundowns.findOne(rundownId)
+		if (!existingDbRundown) throw new Meteor.Error(404, `Rundown "${rundownId}" not found`)
+
+		existingDbRundown.playlistId = playlistId
+		existingDbRundown.playlistExternalId = ingestPlaylist.externalId
+		existingDbRundown.playlistIdIsSetByIngest = true
+
+		try {
+			updateRundownFromIngestData(studio, existingDbRundown, rundown, dataSource, peripheralDevice)
+		} catch (error) {
+			anyErrors.push(error)
+		}
+	}
+
+	if (anyErrors.length) {
+		let concatenatedErrorMsg = `Errors occurred while updating rundowns on rundown playlist. Errors:\n`
+		concatenatedErrorMsg += anyErrors
+			.filter((e) => !!e.message)
+			.map((e) => e.message)
+			.join(`\n`)
+
+		throw new Meteor.Error(concatenatedErrorMsg)
+	}
 
 	span?.end()
 }

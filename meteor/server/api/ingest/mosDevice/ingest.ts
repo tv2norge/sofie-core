@@ -21,7 +21,7 @@ import {
 	normalizeArray,
 } from '../../../../lib/lib'
 import { IngestPart, IngestSegment, IngestRundown } from '@sofie-automation/blueprints-integration'
-import { IngestDataCache, IngestCacheType } from '../../../../lib/collections/IngestDataCache'
+import { IngestDataCache, IngestCacheType, IngestDataCacheObjPart } from '../../../../lib/collections/IngestDataCache'
 import {
 	rundownPlaylistSyncFunction,
 	RundownSyncFunctionPriority,
@@ -157,7 +157,7 @@ export function handleMosRundownData(
 				rundownId: rundownId,
 				partId: { $in: partIds },
 				type: IngestCacheType.PART,
-			}).fetch()
+			}).fetch() as IngestDataCacheObjPart[]
 
 			const partCacheMap: { [id: string]: IngestPart } = {}
 			_.each(partCache, (p) => {
@@ -187,6 +187,7 @@ export function handleMosRundownData(
 
 		handleUpdatedRundownInner(
 			studio,
+			playlistId,
 			rundownId,
 			ingestRundown,
 			createFresh ? 'mosCreate' : 'mosList',
@@ -232,7 +233,7 @@ export function handleMosRundownMetadata(
 			// TODO - verify this doesn't lose data, it was doing more work before
 
 			// TODO - make this more lightweight?
-			handleUpdatedRundownInner(studio, rundownId, ingestRundown, 'mosRoMetadata', peripheralDevice)
+			handleUpdatedRundownInner(studio, playlistId, rundownId, ingestRundown, 'mosRoMetadata', peripheralDevice)
 
 			span?.end()
 		}
@@ -665,7 +666,7 @@ function diffAndApplyChanges(
 
 	// Save new cache
 	const newIngestRundown = updateIngestRundownWithData(oldIngestRundown, newIngestSegments)
-	saveRundownCache(rundown._id, newIngestRundown)
+	saveRundownCache(playlist._id, rundown._id, newIngestRundown)
 
 	// Update segment ranks:
 	_.each(segmentDiff.onlyRankChanged, (newRank, segmentExternalId) => {

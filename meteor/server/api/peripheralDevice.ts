@@ -14,7 +14,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl } from 'url'
 import { syncFunction } from '../codeControl'
 import { RundownInput, rundownPlaylistSyncFunction, RundownSyncFunctionPriority } from './ingest/rundownInput'
-import { IngestRundown, IngestSegment, IngestPart } from '@sofie-automation/blueprints-integration'
+import { IngestRundown, IngestSegment, IngestPart, IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import { MosIntegration } from './ingest/mosDevice/mosIntegration'
 import { MediaScannerIntegration } from './integration/media-scanner'
 import { MediaObject } from '../../lib/collections/MediaObjects'
@@ -807,6 +807,21 @@ class ServerPeripheralDeviceAPIClass extends MethodContextAPI implements NewPeri
 	}
 
 	// ------ Ingest methods: ------------
+	dataPlaylistList(deviceId: PeripheralDeviceId, deviceToken: string) {
+		return makePromise(() => RundownInput.dataPlaylistList(this, deviceId, deviceToken))
+	}
+	dataPlaylistGet(deviceId: PeripheralDeviceId, deviceToken: string, playlistExternalId: string) {
+		return makePromise(() => RundownInput.dataPlaylistGet(this, deviceId, deviceToken, playlistExternalId))
+	}
+	dataPlaylistDelete(deviceId: PeripheralDeviceId, deviceToken: string, playlistExternalId: string) {
+		return makePromise(() => RundownInput.dataPlaylistDelete(this, deviceId, deviceToken, playlistExternalId))
+	}
+	dataPlaylistCreate(deviceId: PeripheralDeviceId, deviceToken: string, ingestPlaylist: IngestPlaylist) {
+		return makePromise(() => RundownInput.dataPlaylistCreate(this, deviceId, deviceToken, ingestPlaylist))
+	}
+	dataPlaylistUpdate(deviceId: PeripheralDeviceId, deviceToken: string, ingestPlaylist: IngestPlaylist) {
+		return makePromise(() => RundownInput.dataPlaylistUpdate(this, deviceId, deviceToken, ingestPlaylist))
+	}
 	dataRundownList(deviceId: PeripheralDeviceId, deviceToken: string) {
 		return makePromise(() => RundownInput.dataRundownList(this, deviceId, deviceToken))
 	}

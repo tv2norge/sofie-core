@@ -232,6 +232,8 @@ export function produceRundownPlaylistInfoFromRundown(
 		playlistId = currentRundown.playlistId
 	} else if (currentRundown.playlistExternalId) {
 		playlistId = getPlaylistIdFromExternalId(studio._id, currentRundown.playlistExternalId)
+	} else if (currentRundown.playlistIdIsSetByIngest) {
+		playlistId = currentRundown.playlistId
 	}
 
 	const getAllRundownsInPlaylist2 = (playlistId: RundownPlaylistId, playlistExternalId: string | null) => {

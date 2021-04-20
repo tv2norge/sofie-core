@@ -12,7 +12,11 @@ import {
 	PeripheralDeviceCommand,
 	PeripheralDeviceCommandId,
 } from '../../../../../lib/collections/PeripheralDeviceCommands'
-import { IngestDataCache, IngestCacheType } from '../../../../../lib/collections/IngestDataCache'
+import {
+	IngestDataCache,
+	IngestCacheType,
+	IngestDataCacheObjPart,
+} from '../../../../../lib/collections/IngestDataCache'
 
 import { mockRO } from './mock-mos-data'
 import { MeteorCall } from '../../../../../lib/api/methods'
@@ -103,7 +107,7 @@ describe('Test sending mos actions', () => {
 			// segmentId: { $exists: true },
 			// partId: { $exists: true },
 			type: IngestCacheType.PART,
-		}).fetch()
+		}).fetch() as IngestDataCacheObjPart[]
 		_.each(cache1, (cache) => {
 			IngestDataCache.update(cache._id, {
 				$set: {

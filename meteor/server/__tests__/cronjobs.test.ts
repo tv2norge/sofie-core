@@ -128,6 +128,7 @@ describe('cronjobs', () => {
 				modified: new Date(2000, 0, 1, 0, 0, 0).getTime(),
 				// this one is attached to rundown0
 				rundownId: protectString(Random.id()),
+				rundownPlaylistId: protectString(Random.id()),
 				type: IngestCacheType.RUNDOWN,
 			})
 			// Attached IngestDataCache object 1
@@ -143,6 +144,7 @@ describe('cronjobs', () => {
 				modified: new Date(2000, 0, 1, 0, 0, 0).getTime(),
 				// just some random ID
 				rundownId: rundown0Id,
+				rundownPlaylistId: protectString(Random.id()),
 				type: IngestCacheType.RUNDOWN,
 			})
 

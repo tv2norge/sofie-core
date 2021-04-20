@@ -1,18 +1,20 @@
 import { TransformedCollection } from '../typings/meteor'
 import { registerCollection, ProtectedString } from '../lib'
-import { IngestRundown, IngestSegment, IngestPart } from '@sofie-automation/blueprints-integration'
+import { IngestRundown, IngestSegment, IngestPart, IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import { createMongoCollection } from './lib'
 import { RundownId } from './Rundowns'
 import { SegmentId } from './Segments'
 import { PartId } from './Parts'
 import { registerIndex } from '../database'
+import { RundownPlaylistId } from './RundownPlaylists'
 
 export enum IngestCacheType {
 	RUNDOWN = 'rundown',
 	SEGMENT = 'segment',
 	PART = 'part',
+	PLAYLIST = 'playlist',
 }
-export type IngestCacheData = IngestRundown | IngestSegment | IngestPart
+export type IngestCacheData = IngestPlaylist | IngestRundown | IngestSegment | IngestPart
 
 /** A string, identifying a IngestDataCacheObj */
 export type IngestDataCacheObjId = ProtectedString<'IngestDataCacheObjId'>
@@ -22,16 +24,17 @@ export interface IngestDataCacheObjBase {
 	modified: number
 	type: IngestCacheType
 
-	/** Id of the Rundown */
-	rundownId: RundownId
-	segmentId?: SegmentId
-	partId?: PartId
-
 	data: IngestCacheData
 }
 
+export interface IngestDataCacheObjRundownPlaylist extends IngestDataCacheObjBase {
+	type: IngestCacheType.PLAYLIST
+	rundownPlaylistId: RundownPlaylistId
+	data: IngestPlaylist
+}
 export interface IngestDataCacheObjRundown extends IngestDataCacheObjBase {
 	type: IngestCacheType.RUNDOWN
+	rundownPlaylistId: RundownPlaylistId
 	rundownId: RundownId
 	data: IngestRundown
 }
@@ -49,7 +52,11 @@ export interface IngestDataCacheObjPart extends IngestDataCacheObjBase {
 	partId: PartId
 	data: IngestPart
 }
-export type IngestDataCacheObj = IngestDataCacheObjRundown | IngestDataCacheObjSegment | IngestDataCacheObjPart
+export type IngestDataCacheObj =
+	| IngestDataCacheObjRundownPlaylist
+	| IngestDataCacheObjRundown
+	| IngestDataCacheObjSegment
+	| IngestDataCacheObjPart
 
 export const IngestDataCache: TransformedCollection<IngestDataCacheObj, IngestDataCacheObj> = createMongoCollection<
 	IngestDataCacheObj
