@@ -37,7 +37,7 @@ import { AsRunLog, AsRunLogEvent } from '../../lib/collections/AsRunLog'
 import { ExpectedMediaItems } from '../../lib/collections/ExpectedMediaItems'
 import { ExpectedPlayoutItems } from '../../lib/collections/ExpectedPlayoutItems'
 import { Timeline } from '../../lib/collections/Timeline'
-import { rundownContentAllowWrite, pieceContentAllowWrite } from './rundown'
+import { rundownContentAllowWrite, pieceContentAllowWrite, playlistContentAllowWrite } from './rundown'
 import { SystemReadAccess, SystemWriteAccess } from './system'
 import { Buckets } from '../../lib/collections/Buckets'
 import { studioContentAllowWrite } from './studio'
@@ -422,13 +422,13 @@ RundownBaselineAdLibPieces.allow({
 })
 IngestDataCache.allow({
 	insert(userId, doc: IngestDataCacheObj): boolean {
-		return rundownContentAllowWrite(userId, doc)
+		return playlistContentAllowWrite(userId, doc)
 	},
 	update(userId, doc) {
-		return rundownContentAllowWrite(userId, doc)
+		return playlistContentAllowWrite(userId, doc)
 	},
 	remove(userId, doc) {
-		return rundownContentAllowWrite(userId, doc)
+		return playlistContentAllowWrite(userId, doc)
 	},
 })
 AsRunLog.allow({

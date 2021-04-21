@@ -861,6 +861,7 @@ describe('Test blueprint api context', () => {
 
 			IngestDataCache.insert({
 				_id: protectString(''),
+				playlistId: rundown.playlistId,
 				rundownId: rundown._id,
 				segmentId: part.segmentId,
 				partId: part._id,

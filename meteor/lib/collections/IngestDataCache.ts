@@ -24,17 +24,17 @@ export interface IngestDataCacheObjBase {
 	modified: number
 	type: IngestCacheType
 
+	playlistId: RundownPlaylistId
+
 	data: IngestCacheData
 }
 
 export interface IngestDataCacheObjRundownPlaylist extends IngestDataCacheObjBase {
 	type: IngestCacheType.PLAYLIST
-	rundownPlaylistId: RundownPlaylistId
 	data: IngestPlaylist
 }
 export interface IngestDataCacheObjRundown extends IngestDataCacheObjBase {
 	type: IngestCacheType.RUNDOWN
-	rundownPlaylistId: RundownPlaylistId
 	rundownId: RundownId
 	data: IngestRundown
 }

@@ -317,7 +317,7 @@ function cleanupOldDataInner(actuallyCleanup: boolean = false): CollectionCleanu
 	}
 	// IngestDataCache
 	{
-		results.push(ownedByRundownId('IngestDataCache', IngestDataCache))
+		results.push(ownedByRundownPlaylistId('IngestDataCache', IngestDataCache))
 	}
 	// MediaObjects
 	{

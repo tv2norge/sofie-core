@@ -1438,7 +1438,7 @@ export function updateSegmentFromCache(rundownId: RundownId, segmentId: SegmentI
 
 		const cache = waitForPromise(initCacheForRundownPlaylist(playlist))
 		cache.defer(() => {
-			saveSegmentCache(rundown._id, segmentId, makeNewIngestSegment(ingestSegment))
+			saveSegmentCache(playlistId, rundown._id, segmentId, makeNewIngestSegment(ingestSegment))
 		})
 
 		const blueprint = loadShowStyleBlueprint(waitForPromise(cache.activationCache.getShowStyleBase(rundown)))
@@ -1483,7 +1483,7 @@ export function handleUpdatedSegment(
 		const cache = waitForPromise(initCacheForRundownPlaylist(playlist))
 		cache.defer(() => {
 			// can we do this?
-			saveSegmentCache(rundown._id, segmentId, makeNewIngestSegment(ingestSegment))
+			saveSegmentCache(playlistId, rundown._id, segmentId, makeNewIngestSegment(ingestSegment))
 		})
 
 		const blueprint = loadShowStyleBlueprint(waitForPromise(cache.activationCache.getShowStyleBase(rundown)))
@@ -2003,7 +2003,7 @@ export function handleRemovedPart(
 				ingestSegment.modified = getCurrentTime()
 
 				cache.defer(() => {
-					saveSegmentCache(rundown._id, segmentId, ingestSegment)
+					saveSegmentCache(playlistId, rundown._id, segmentId, ingestSegment)
 				})
 
 				const blueprint = loadShowStyleBlueprint(
@@ -2085,7 +2085,7 @@ export function handleUpdatedPartInner(
 		ingestSegment.modified = getCurrentTime()
 
 		cache.defer(() => {
-			saveSegmentCache(rundown._id, segmentId, ingestSegment)
+			saveSegmentCache(playlist._id, rundown._id, segmentId, ingestSegment)
 		})
 
 		const blueprint = loadShowStyleBlueprint(waitForPromise(cache.activationCache.getShowStyleBase(rundown)))

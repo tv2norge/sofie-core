@@ -27,7 +27,7 @@ export function loadCachedRundownPlaylistData(
 ): LocalIngestPlaylist {
 	const span = profiler.startSpan('ingest.ingestCache.loadCachedRundownPlaylistData')
 
-	const cacheEntries = IngestDataCache.find({ rundownPlaylistId: playlistId }).fetch()
+	const cacheEntries = IngestDataCache.find({ playlistId: playlistId }).fetch()
 
 	const cachedPlaylist = cacheEntries.find((e) => e.type === IngestCacheType.PLAYLIST)
 	if (!cachedPlaylist)
@@ -175,7 +175,7 @@ export function savePlaylistCacahe(studio: Studio, playlistId: RundownPlaylistId
 	saveIntoDb<IngestDataCacheObj, IngestDataCacheObj>(
 		IngestDataCache,
 		{
-			rundownPlaylistId: playlistId,
+			playlistId: playlistId,
 		},
 		cacheEntries
 	)
@@ -195,11 +195,16 @@ export function saveRundownCache(
 		cacheEntries
 	)
 }
-export function saveSegmentCache(rundownId: RundownId, segmentId: SegmentId, ingestSegment: LocalIngestSegment) {
+export function saveSegmentCache(
+	playlistId: RundownPlaylistId,
+	rundownId: RundownId,
+	segmentId: SegmentId,
+	ingestSegment: LocalIngestSegment
+) {
 	const span = profiler.startSpan('ingest.ingestCache.saveSegmentCache')
 
 	// cache the Data:
-	const cacheEntries: IngestDataCacheObj[] = generateCacheForSegment(rundownId, ingestSegment)
+	const cacheEntries: IngestDataCacheObj[] = generateCacheForSegment(playlistId, rundownId, ingestSegment)
 	saveIntoDb<IngestDataCacheObj, IngestDataCacheObj>(
 		IngestDataCache,
 		{
@@ -274,14 +279,14 @@ export function updateIngestRundownWithData(
 
 function generateCacheForRundownPlaylist(
 	studio: Studio,
-	rundownPlaylistId: RundownPlaylistId,
+	playlistId: RundownPlaylistId,
 	ingestPlaylist: LocalIngestPlaylist
 ): IngestDataCacheObj[] {
 	const cacheEntries: IngestDataCacheObj[] = []
 	const playlist: IngestDataCacheObjRundownPlaylist = {
-		_id: protectString<IngestDataCacheObjId>(unprotectString(rundownPlaylistId)),
+		_id: protectString<IngestDataCacheObjId>(unprotectString(playlistId)),
 		type: IngestCacheType.PLAYLIST,
-		rundownPlaylistId,
+		playlistId,
 		modified: ingestPlaylist.modified,
 		data: {
 			..._.omit(ingestPlaylist, 'modified'),
@@ -290,14 +295,12 @@ function generateCacheForRundownPlaylist(
 	}
 	cacheEntries.push(playlist)
 	_.each(ingestPlaylist.rundowns, (rundown) =>
-		cacheEntries.push(
-			...generateCacheForRundown(rundownPlaylistId, getRundownId(studio, rundown.externalId), rundown)
-		)
+		cacheEntries.push(...generateCacheForRundown(playlistId, getRundownId(studio, rundown.externalId), rundown))
 	)
 	return cacheEntries
 }
 function generateCacheForRundown(
-	rundownPlaylistId: RundownPlaylistId,
+	playlistId: RundownPlaylistId,
 	rundownId: RundownId,
 	ingestRundown: LocalIngestRundown
 ): IngestDataCacheObj[] {
@@ -307,7 +310,7 @@ function generateCacheForRundown(
 		_id: protectString<IngestDataCacheObjId>(unprotectString(rundownId)),
 		type: IngestCacheType.RUNDOWN,
 		rundownId,
-		rundownPlaylistId,
+		playlistId: playlistId,
 		modified: ingestRundown.modified,
 		data: {
 			..._.omit(ingestRundown, 'modified'),
@@ -315,16 +318,23 @@ function generateCacheForRundown(
 		},
 	}
 	cacheEntries.push(rundown)
-	_.each(ingestRundown.segments, (segment) => cacheEntries.push(...generateCacheForSegment(rundownId, segment)))
+	_.each(ingestRundown.segments, (segment) =>
+		cacheEntries.push(...generateCacheForSegment(playlistId, rundownId, segment))
+	)
 	return cacheEntries
 }
-function generateCacheForSegment(rundownId: RundownId, ingestSegment: LocalIngestSegment): IngestDataCacheObj[] {
+function generateCacheForSegment(
+	playlistId: RundownPlaylistId,
+	rundownId: RundownId,
+	ingestSegment: LocalIngestSegment
+): IngestDataCacheObj[] {
 	const segmentId = getSegmentId(rundownId, ingestSegment.externalId)
 	const cacheEntries: Array<IngestDataCacheObjSegment | IngestDataCacheObjPart> = []
 
 	const segment: IngestDataCacheObjSegment = {
 		_id: protectString<IngestDataCacheObjId>(`${rundownId}_${segmentId}`),
 		type: IngestCacheType.SEGMENT,
+		playlistId,
 		rundownId: rundownId,
 		segmentId: segmentId,
 		modified: ingestSegment.modified,
@@ -336,12 +346,13 @@ function generateCacheForSegment(rundownId: RundownId, ingestSegment: LocalInges
 	cacheEntries.push(segment)
 
 	_.each(ingestSegment.parts, (part) => {
-		cacheEntries.push(generateCacheForPart(rundownId, segmentId, part))
+		cacheEntries.push(generateCacheForPart(playlistId, rundownId, segmentId, part))
 	})
 
 	return cacheEntries
 }
 function generateCacheForPart(
+	playlistId: RundownPlaylistId,
 	rundownId: RundownId,
 	segmentId: SegmentId,
 	part: LocalIngestPart
@@ -350,6 +361,7 @@ function generateCacheForPart(
 	return {
 		_id: protectString<IngestDataCacheObjId>(`${rundownId}_${partId}`),
 		type: IngestCacheType.PART,
+		playlistId,
 		rundownId: rundownId,
 		segmentId: segmentId,
 		partId: partId,

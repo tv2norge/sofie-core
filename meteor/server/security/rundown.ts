@@ -5,7 +5,7 @@ import * as _ from 'underscore'
 import { MongoQuery } from '../../lib/typings/meteor'
 import { Credentials, ResolvedCredentials } from './lib/credentials'
 import { logNotAllowed } from './lib/lib'
-import { allowAccessToRundown } from './lib/security'
+import { allowAccessToRundown, allowAccessToRundownPlaylist } from './lib/security'
 import { RundownId } from '../../lib/collections/Rundowns'
 import { protectString } from '../../lib/lib'
 import { Segments, SegmentId } from '../../lib/collections/Segments'
@@ -15,6 +15,7 @@ import { PeripheralDeviceAPI } from '../../lib/api/peripheralDevice'
 import { ExpectedPlayoutItem } from '../../lib/collections/ExpectedPlayoutItems'
 import { Settings } from '../../lib/Settings'
 import { triggerWriteAccess } from './lib/securityVerify'
+import { RundownPlaylistId } from '../../lib/collections/RundownPlaylists'
 
 type RundownContent = { rundownId: RundownId }
 export namespace RundownReadAccess {
@@ -112,6 +113,12 @@ export namespace RundownReadAccess {
 			return true
 		}
 	}
+}
+export function playlistContentAllowWrite(userId, doc: { playlistId: RundownPlaylistId }): boolean {
+	triggerWriteAccess()
+	const access = allowAccessToRundownPlaylist({ userId: protectString(userId) }, doc.playlistId)
+	if (!access.update) return logNotAllowed('Playlist content', access.reason)
+	return true
 }
 export function rundownContentAllowWrite(userId, doc: RundownContent): boolean {
 	triggerWriteAccess()
