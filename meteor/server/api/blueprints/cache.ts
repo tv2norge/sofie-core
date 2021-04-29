@@ -107,7 +107,7 @@ export function loadBlueprintById(blueprintId: BlueprintId): SomeBlueprintManife
 	if (!blueprint || BLUEPRINT_CACHE_CONTROL.disable) {
 		blueprint = Blueprints.findOne(blueprintId)
 
-		if (blueprint && !BLUEPRINT_CACHE_CONTROL.disable) blueprintDocCache[unprotectString(blueprintId)] = blueprint
+		// if (blueprint && !BLUEPRINT_CACHE_CONTROL.disable) blueprintDocCache[unprotectString(blueprintId)] = blueprint
 	}
 
 	if (!blueprint) return undefined
@@ -178,10 +178,10 @@ export function evalBlueprint(blueprint: Blueprint): SomeBlueprintManifest {
 			}
 		})
 
-		blueprintManifestCache[unprotectString(blueprint._id)] = {
+		/*blueprintManifestCache[unprotectString(blueprint._id)] = {
 			manifest,
 			modified: blueprint.modified,
-		}
+		}*/
 		return manifest
 	}
 }
