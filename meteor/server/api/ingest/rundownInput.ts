@@ -511,7 +511,7 @@ export function handleUpdatedPlaylist(
 		)
 	}
 
-	return rundownPlaylistSyncFunction(playlistId, RundownSyncFunctionPriority.INGEST, 'handleUpdatedRundown', () =>
+	return rundownPlaylistSyncFunction(playlistId, RundownSyncFunctionPriority.INGEST, 'handleUpdatedPlaylist', () =>
 		handleUpdatedRundownPlaylistInner(
 			studio,
 			playlistId,
@@ -771,11 +771,11 @@ function updateRundownPlaylistFromIngestData(
 	for (const rundown of ingestPlaylist.rundowns) {
 		const rundownId = getRundownId(studio, rundown.externalId)
 		const existingDbRundown = Rundowns.findOne(rundownId)
-		if (!existingDbRundown) throw new Meteor.Error(404, `Rundown "${rundownId}" not found`)
-
-		existingDbRundown.playlistId = playlistId
-		existingDbRundown.playlistExternalId = ingestPlaylist.externalId
-		existingDbRundown.playlistIdIsSetByIngest = true
+		if (existingDbRundown) {
+			existingDbRundown.playlistId = playlistId
+			existingDbRundown.playlistExternalId = ingestPlaylist.externalId
+			existingDbRundown.playlistIdIsSetByIngest = true
+		}
 
 		try {
 			updateRundownFromIngestData(studio, existingDbRundown, rundown, dataSource, peripheralDevice)
