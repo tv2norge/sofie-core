@@ -160,7 +160,7 @@ export enum methods {
 	'updateMediaWorkFlowStep' = 'peripheralDevice.mediaManager.updateMediaWorkFlowStep',
 
 	'requestUserAuthToken' = 'peripheralDevice.spreadsheet.requestUserAuthToken',
-	'storeAccessToken' = 'peripheralDevice.spreadsheet.storeAccessToken',
+	'storeAccessToken' = 'peripheralDevice.spreadsheet.storeAccessToken'
 
 }
 
