@@ -773,7 +773,6 @@ function updateRundownPlaylistFromIngestData(
 		const existingDbRundown = Rundowns.findOne(rundownId)
 		if (existingDbRundown) {
 			existingDbRundown.playlistId = playlistId
-			existingDbRundown.playlistExternalId = ingestPlaylist.externalId
 			existingDbRundown.playlistIdIsSetByIngest = true
 		}
 
