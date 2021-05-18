@@ -901,9 +901,9 @@ function updateRundownFromIngestData(
 				peripheralDeviceId: protectString(''), // omitted, set later, below
 				externalNRCSName: '', // omitted, set later, below
 				dataSource: '', // omitted, set later, below
-				playlistId: playlistId ?? protectString<RundownPlaylistId>(''), // omitted, set later, in produceRundownPlaylistInfo
+				playlistId: playlistId ?? protectString<RundownPlaylistId>(''), // may be omitted and set later, in produceRundownPlaylistInfo
 				_rank: 0, // omitted, set later, in produceRundownPlaylistInfo
-				playlistIdIsSetByIngest: !!playlistId,
+				playlistIdIsSetByIngest: !!playlistId ? true : undefined,
 			}),
 			[
 				'created',
