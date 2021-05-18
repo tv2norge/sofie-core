@@ -777,7 +777,14 @@ function updateRundownPlaylistFromIngestData(
 		}
 
 		try {
-			updateRundownFromIngestData(studio, existingDbRundown, rundown, dataSource, peripheralDevice)
+			updateRundownFromIngestData(
+				studio,
+				existingDbRundown,
+				rundown,
+				dataSource,
+				peripheralDevice,
+				dbRundownPlaylistData._id
+			)
 		} catch (error) {
 			anyErrors.push(error)
 		}
@@ -800,7 +807,8 @@ function updateRundownFromIngestData(
 	existingDbRundown: Rundown | undefined,
 	ingestRundown: IngestRundown,
 	dataSource?: string,
-	peripheralDevice?: PeripheralDevice
+	peripheralDevice?: PeripheralDevice,
+	playlistId?: RundownPlaylistId
 ): boolean {
 	const span = profiler.startSpan('ingest.rundownInput.updateRundownFromIngestData')
 
@@ -855,10 +863,13 @@ function updateRundownFromIngestData(
 			},
 		})
 	)
-	rundownRes.rundown.playlistExternalId = modifyPlaylistExternalId(
-		rundownRes.rundown.playlistExternalId,
-		showStyle.base
-	)
+
+	if (!playlistId) {
+		rundownRes.rundown.playlistExternalId = modifyPlaylistExternalId(
+			rundownRes.rundown.playlistExternalId,
+			showStyle.base
+		)
+	}
 
 	const showStyleBlueprintDb = (Blueprints.findOne(showStyle.base.blueprintId) as Blueprint) || {}
 
@@ -890,10 +901,19 @@ function updateRundownFromIngestData(
 				peripheralDeviceId: protectString(''), // omitted, set later, below
 				externalNRCSName: '', // omitted, set later, below
 				dataSource: '', // omitted, set later, below
-				playlistId: protectString<RundownPlaylistId>(''), // omitted, set later, in produceRundownPlaylistInfo
+				playlistId: playlistId ?? protectString<RundownPlaylistId>(''), // omitted, set later, in produceRundownPlaylistInfo
 				_rank: 0, // omitted, set later, in produceRundownPlaylistInfo
+				playlistIdIsSetByIngest: !!playlistId,
 			}),
-			['created', 'modified', 'peripheralDeviceId', 'externalNRCSName', 'dataSource', 'playlistId', '_rank']
+			[
+				'created',
+				'modified',
+				'peripheralDeviceId',
+				'externalNRCSName',
+				'dataSource',
+				'_rank',
+				...(playlistId ? 'playlistId' : ''),
+			]
 		)
 	)
 	if (peripheralDevice) {
