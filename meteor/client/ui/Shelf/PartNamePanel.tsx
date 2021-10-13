@@ -105,7 +105,6 @@ export const PartNamePanel = translateWithTracker<IPartNamePanelProps, IState, I
 		if (selectedPartInstanceId) {
 			const selectedPartInstance = props.playlist.getActivePartInstances({ _id: selectedPartInstanceId })[0]
 			if (selectedPartInstance && props.panel.showPieceIconColor) {
-				name = selectedPartInstance.part?.title
 				const pieceInstances = PieceInstances.find({ partInstanceId: selectedPartInstance._id }).fetch()
 				instanceToShow = findPieceInstanceToShowFromInstances(
 					pieceInstances,
@@ -115,6 +114,7 @@ export const PartNamePanel = translateWithTracker<IPartNamePanelProps, IState, I
 					}, {}),
 					pieceIconSupportedLayers
 				)
+				name = selectedPartInstance.part?.title
 			}
 		}
 
