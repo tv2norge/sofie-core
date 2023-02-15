@@ -10,7 +10,6 @@ import {
 	Timeline as TimelineTypes,
 	TSRTimelineObj,
 	TSRTimeline,
-	TSRTimelineObjBase,
 	CommandReport,
 	DeviceOptionsAtem,
 	AtemMediaPoolAsset,
@@ -21,6 +20,7 @@ import {
 	SlowFulfilledCommandInfo,
 	DeviceStatus,
 	StatusCode,
+	TSRTimelineContent,
 } from 'timeline-state-resolver'
 import { CoreHandler, CoreTSRDeviceHandler } from './coreHandler'
 import clone = require('fast-clone')
@@ -115,7 +115,8 @@ export interface RoutedMappings {
 }
 // ----------------------------------------------------------------------------
 
-export interface TimelineContentObjectTmp extends TSRTimelineObjBase {
+export interface TimelineContentObjectTmp<TContent extends { deviceType: DeviceType }>
+	extends TSRTimelineObj<TContent> {
 	inGroup?: string
 }
 /** Max time for initializing devices */
@@ -1083,7 +1084,7 @@ export class TSRHandler {
 	private _transformTimeline(timeline: Array<TimelineObjGeneric>): TSRTimeline {
 		// _transformTimeline (timeline: Array<TimelineObj>): Array<TimelineContentObject> | null {
 
-		const transformObject = (obj: TimelineObjGeneric): TimelineContentObjectTmp => {
+		const transformObject = (obj: TimelineObjGeneric): TimelineContentObjectTmp<TSRTimelineContent> => {
 			// TODO - this cast to any feels dangerous. Are any of these 'fixes' necessary?
 			const transformedObj: any = obj
 
@@ -1096,15 +1097,15 @@ export class TSRHandler {
 		}
 
 		// First, transform and convert timeline to a key-value store, for fast referencing:
-		const objects: { [id: string]: TimelineContentObjectTmp } = {}
+		const objects: { [id: string]: TimelineContentObjectTmp<TSRTimelineContent> } = {}
 		_.each(timeline, (obj: TimelineObjGeneric) => {
 			const transformedObj = transformObject(obj)
 			objects[transformedObj.id] = transformedObj
 		})
 
 		// Go through all objects:
-		const transformedTimeline: Array<TSRTimelineObj> = []
-		_.each(objects, (obj: TimelineContentObjectTmp) => {
+		const transformedTimeline: Array<TSRTimelineObj<TSRTimelineContent>> = []
+		_.each(objects, (obj: TimelineContentObjectTmp<TSRTimelineContent>) => {
 			if (obj.inGroup) {
 				const groupObj = objects[obj.inGroup]
 				if (groupObj) {
@@ -1123,7 +1124,7 @@ export class TSRHandler {
 			} else {
 				// Add object to timeline
 				delete obj.inGroup
-				transformedTimeline.push(obj as TSRTimelineObj)
+				transformedTimeline.push(obj as TSRTimelineObj<TSRTimelineContent>)
 			}
 		})
 		return transformedTimeline
