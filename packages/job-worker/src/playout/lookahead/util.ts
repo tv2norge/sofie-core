@@ -1,4 +1,4 @@
-import { TimelineObjectCoreExt } from '@sofie-automation/blueprints-integration'
+import { TimelineObjectCoreExt, TSR } from '@sofie-automation/blueprints-integration'
 import { DBPart, isPartPlayable } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
@@ -19,7 +19,7 @@ export interface PartInstanceAndPieceInstances {
 }
 export interface PieceInstanceWithObjectMap extends PieceInstance {
 	/** Cache of objects built by findObjects. */
-	objectMap?: Map<string, TimelineObjectCoreExt>
+	objectMap?: Map<string, TimelineObjectCoreExt<TSR.TSRTimelineContent>>
 }
 export interface PartAndPieces {
 	part: DBPart

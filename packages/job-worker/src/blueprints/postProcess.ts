@@ -139,7 +139,7 @@ export function postProcessPieces(
 	return processedPieces
 }
 
-function isNow(enable: TSR.TSRTimelineObjBase['enable']): boolean {
+function isNow(enable: TSR.TSRTimelineObj<TSR.TSRTimelineContent>['enable']): boolean {
 	if (Array.isArray(enable)) {
 		return !!enable.find((e) => e.start === 'now')
 	} else {
@@ -150,10 +150,10 @@ function isNow(enable: TSR.TSRTimelineObjBase['enable']): boolean {
 export function postProcessTimelineObjects(
 	pieceId: PieceId,
 	blueprintId: BlueprintId,
-	timelineObjects: TSR.TSRTimelineObjBase[],
+	timelineObjects: TSR.TSRTimelineObj<TSR.TSRTimelineContent>[],
 	timelineUniqueIds: Set<string> = new Set<string>()
 ): TimelineObjRundown[] {
-	return timelineObjects.map((o: TimelineObjectCoreExt, i) => {
+	return timelineObjects.map((o: TimelineObjectCoreExt<TSR.TSRTimelineContent>, i) => {
 		const obj: TimelineObjRundown = {
 			...o,
 			id: o.id,
@@ -302,14 +302,14 @@ export function postProcessAdLibActions(
 
 export function postProcessStudioBaselineObjects(
 	studio: ReadonlyDeep<DBStudio>,
-	objs: TSR.TSRTimelineObjBase[]
+	objs: TSR.TSRTimelineObj<TSR.TSRTimelineContent>[]
 ): TimelineObjRundown[] {
 	return postProcessTimelineObjects(protectString('studio'), studio.blueprintId ?? protectString(''), objs)
 }
 
 export function postProcessRundownBaselineItems(
 	blueprintId: BlueprintId,
-	baselineItems: TSR.TSRTimelineObjBase[]
+	baselineItems: TSR.TSRTimelineObj<TSR.TSRTimelineContent>[]
 ): TimelineObjGeneric[] {
 	return postProcessTimelineObjects(protectString('baseline'), blueprintId, baselineItems)
 }

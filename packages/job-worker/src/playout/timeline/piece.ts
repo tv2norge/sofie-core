@@ -69,7 +69,7 @@ export function transformPieceGroupAndObjects(
 
 			pieceObjects.push({
 				metaData: undefined,
-				...clone<TimelineObjectCoreExt>(o),
+				...clone<TimelineObjectCoreExt<TSR.TSRTimelineContent>>(o),
 				inGroup: childGroup.id,
 				objectType: TimelineObjType.RUNDOWN,
 				pieceInstanceId: unprotectString(pieceInstance._id),

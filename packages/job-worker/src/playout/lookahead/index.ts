@@ -7,6 +7,7 @@ import {
 	Timeline as TimelineTypes,
 	LookaheadMode,
 	OnGenerateTimelineObj,
+	TSR,
 } from '@sofie-automation/blueprints-integration'
 import { SelectedPartInstancesTimelineInfo, SelectedPartInstanceTimelineInfo } from '../timeline/generate'
 import {
@@ -174,10 +175,10 @@ export async function getLookeaheadObjects(
 }
 
 // elsewhere uses prefixAllObjectIds to do this, but we want to apply to a single object from itself
-const getStartOfObjectRef = (obj: TimelineObjRundown & OnGenerateTimelineObj): string =>
+const getStartOfObjectRef = (obj: TimelineObjRundown & OnGenerateTimelineObj<TSR.TSRTimelineContent>): string =>
 	`#${prefixSingleObjectId(obj, obj.pieceInstanceId ?? '')}.start`
 const calculateStartAfterPreviousObj = (
-	prevObj: TimelineObjRundown & OnGenerateTimelineObj
+	prevObj: TimelineObjRundown & OnGenerateTimelineObj<TSR.TSRTimelineContent>
 ): TimelineTypes.TimelineEnable => {
 	const prevHasDelayFlag = (prevObj.classes || []).indexOf('_lookahead_start_delay') !== -1
 

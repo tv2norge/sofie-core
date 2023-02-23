@@ -1,4 +1,3 @@
-import { TSRTimelineContent } from 'timeline-state-resolver-types'
 import { Time } from './common'
 import { IBlueprintExternalMessageQueueObj } from './message'
 import { PackageInfo } from './packageInfo'
@@ -15,7 +14,7 @@ import {
 	IBlueprintSegmentRundown,
 } from './rundown'
 import { BlueprintMappings } from './studio'
-import { OnGenerateTimelineObj } from './timeline'
+import { OnGenerateTimelineObj, TSR } from './timeline'
 
 /** Common */
 
@@ -275,7 +274,7 @@ export interface ITimelineEventContext extends IEventContext, IRundownContext {
 	 * sessionName should also be used in calls to getPieceABSessionId for the owning piece
 	 */
 	getTimelineObjectAbSessionId(
-		obj: OnGenerateTimelineObj<TSRTimelineContent, any, any>,
+		obj: OnGenerateTimelineObj<TSR.TSRTimelineContent, any, any>,
 		sessionName: string
 	): string | undefined
 }

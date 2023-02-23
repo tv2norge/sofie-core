@@ -4,6 +4,7 @@ import {
 	IBlueprintPieceType,
 	TimelineObjectCoreExt,
 	SomeContent,
+	TSR,
 } from '@sofie-automation/blueprints-integration'
 import { ProtectedString, protectString, unprotectString } from '../protectedString'
 import { PieceId, RundownId, SegmentId, PartId } from './Ids'
@@ -74,16 +75,20 @@ export interface Piece extends PieceGeneric, Omit<IBlueprintPieceDB, '_id' | 'co
 
 export type PieceTimelineObjectsBlob = ProtectedString<'PieceTimelineObjectsBlob'>
 
-export function deserializePieceTimelineObjectsBlob(timelineBlob: PieceTimelineObjectsBlob): TimelineObjectCoreExt[] {
+export function deserializePieceTimelineObjectsBlob(
+	timelineBlob: PieceTimelineObjectsBlob
+): TimelineObjectCoreExt<TSR.TSRTimelineContent>[] {
 	const str = unprotectString(timelineBlob) + ''
 	try {
-		return JSON.parse(str) as Array<TimelineObjectCoreExt>
+		return JSON.parse(str) as Array<TimelineObjectCoreExt<TSR.TSRTimelineContent>>
 	} catch (err) {
 		;(err as Error).message += ` Blob: ${str.slice(0, 100)}`
 		throw err
 	}
 }
-export function serializePieceTimelineObjectsBlob(timeline: TimelineObjectCoreExt[]): PieceTimelineObjectsBlob {
+export function serializePieceTimelineObjectsBlob(
+	timeline: TimelineObjectCoreExt<TSR.TSRTimelineContent>[]
+): PieceTimelineObjectsBlob {
 	return protectString(JSON.stringify(timeline))
 }
 export const EmptyPieceTimelineObjectsBlob = serializePieceTimelineObjectsBlob([])
