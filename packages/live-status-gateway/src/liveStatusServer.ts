@@ -12,8 +12,8 @@ import { PartInstancesHandler } from './collections/partInstancesHandler'
 import { AdLibActionsHandler } from './collections/adLibActionsHandler'
 import { GlobalAdLibActionsHandler } from './collections/globalAdLibActionsHandler'
 import { RootChannel } from './topics/root'
-import { StudioTopic } from './topics/studio'
-import { ActivePlaylistTopic } from './topics/activePlaylist'
+import { StudioTopic } from './topics/studioTopic'
+import { ActivePlaylistTopic } from './topics/activePlaylistTopic'
 import { AdLibsHandler } from './collections/adLibsHandler'
 import { GlobalAdLibsHandler } from './collections/globalAdLibsHandler'
 import { SegmentsTopic } from './topics/segmentsTopic'
@@ -97,6 +97,8 @@ export class LiveStatusServer {
 		await adLibsHandler.subscribe(activePlaylistTopic)
 		await globalAdLibActionsHandler.subscribe(activePlaylistTopic)
 		await globalAdLibsHandler.subscribe(activePlaylistTopic)
+		await partsHandler.subscribe(activePlaylistTopic)
+
 		await playlistHandler.subscribe(segmentsTopic)
 		await segmentsHandler.subscribe(segmentsTopic)
 		await partsHandler.subscribe(segmentsTopic)

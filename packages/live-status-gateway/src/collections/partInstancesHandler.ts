@@ -6,20 +6,23 @@ import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/Rund
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
-import isShallowEqual from '@sofie-automation/shared-lib/dist/lib/isShallowEqual'
+import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isShallowEqual'
+import _ = require('underscore')
 
-export enum PartInstanceName {
-	current = 'current',
-	next = 'next',
+export interface SelectedPartInstances {
+	current: DBPartInstance | undefined
+	next: DBPartInstance | undefined
+	firstInSegmentPlayout: DBPartInstance | undefined
+	inCurrentSegment: DBPartInstance[]
 }
 
 export class PartInstancesHandler
-	extends CollectionBase<Map<PartInstanceName, DBPartInstance | undefined>>
-	implements Collection<Map<PartInstanceName, DBPartInstance | undefined>>, CollectionObserver<DBRundownPlaylist>
+	extends CollectionBase<SelectedPartInstances>
+	implements Collection<SelectedPartInstances>, CollectionObserver<DBRundownPlaylist>
 {
 	public observerName: string
 	private _core: CoreConnection
-	private _curPlaylist: DBRundownPlaylist | undefined
+	private _currentPlaylist: DBRundownPlaylist | undefined
 	private _rundownIds: string[] = []
 	private _activationId: string | undefined
 
@@ -27,28 +30,67 @@ export class PartInstancesHandler
 		super(PartInstancesHandler.name, CollectionName.PartInstances, 'partInstances', logger, coreHandler)
 		this._core = coreHandler.coreConnection
 		this.observerName = this._name
-		this._collectionData = new Map()
-		this._collectionData.set(PartInstanceName.current, undefined)
-		this._collectionData.set(PartInstanceName.next, undefined)
+		this._collectionData = {
+			current: undefined,
+			next: undefined,
+			firstInSegmentPlayout: undefined,
+			inCurrentSegment: [],
+		}
 	}
 
 	async changed(id: string, changeType: string): Promise<void> {
 		this._logger.info(`${this._name} ${changeType} ${id}`)
 		if (!this._collectionName) return
-		const collection = this._core.getCollection<DBPartInstance>(this._collectionName)
-		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
-		const curPartInstance = this._curPlaylist?.currentPartInfo?.partInstanceId
-			? collection.findOne(this._curPlaylist.currentPartInfo.partInstanceId)
-			: undefined
-		const nextPartInstance = this._curPlaylist?.nextPartInfo?.partInstanceId
-			? collection.findOne(this._curPlaylist.nextPartInfo.partInstanceId)
-			: undefined
-		this._collectionData?.forEach((_pi, key) => {
-			if (PartInstanceName.current === key) this._collectionData?.set(key, curPartInstance)
-			else if (PartInstanceName.next === key) this._collectionData?.set(key, nextPartInstance)
-		})
+		this.updateCollectionData()
 
 		await this.notify(this._collectionData)
+	}
+
+	private updateCollectionData(): boolean {
+		if (!this._collectionName || !this._collectionData) return false
+		const collection = this._core.getCollection<DBPartInstance>(this._collectionName)
+		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
+		const currentPartInstance = this._currentPlaylist?.currentPartInfo?.partInstanceId
+			? collection.findOne(this._currentPlaylist.currentPartInfo.partInstanceId)
+			: undefined
+		const nextPartInstance = this._currentPlaylist?.nextPartInfo?.partInstanceId
+			? collection.findOne(this._currentPlaylist.nextPartInfo.partInstanceId)
+			: undefined
+		const partInstancesInSegmentPlayout = currentPartInstance
+			? collection.find({ segmentPlayoutId: currentPartInstance.segmentPlayoutId })
+			: []
+
+		const firstPartInstanceInSegmentPlayout = _.min(
+			partInstancesInSegmentPlayout,
+			(partInstance) => partInstance.takeCount
+		) as DBPartInstance
+
+		let hasAnythingChanged = false
+		if (currentPartInstance !== this._collectionData.current) {
+			this._collectionData.current = currentPartInstance
+			hasAnythingChanged = true
+		}
+		if (this._collectionData.next !== nextPartInstance) {
+			this._collectionData.next = nextPartInstance
+			hasAnythingChanged = true
+		}
+		if (this._collectionData.firstInSegmentPlayout !== firstPartInstanceInSegmentPlayout) {
+			this._collectionData.firstInSegmentPlayout = firstPartInstanceInSegmentPlayout
+			hasAnythingChanged = true
+		}
+		if (!areElementsShallowEqual(this._collectionData.inCurrentSegment, partInstancesInSegmentPlayout)) {
+			this._collectionData.inCurrentSegment = partInstancesInSegmentPlayout
+			hasAnythingChanged = true
+		}
+		return hasAnythingChanged
+	}
+
+	private clearCollectionData() {
+		if (!this._collectionName || !this._collectionData) return
+		this._collectionData.current = undefined
+		this._collectionData.next = undefined
+		this._collectionData.firstInSegmentPlayout = undefined
+		this._collectionData.inCurrentSegment = []
 	}
 
 	async update(source: string, data: DBRundownPlaylist | undefined): Promise<void> {
@@ -60,19 +102,21 @@ export class PartInstancesHandler
 				data?.activationId ? true : false
 			} from ${source}`
 		)
-		this._curPlaylist = data
+		this._currentPlaylist = data
 		if (!this._collectionName) return
 
-		this._rundownIds = this._curPlaylist ? this._curPlaylist.rundownIdsInOrder.map((r) => unprotectString(r)) : []
-		this._activationId = unprotectString(this._curPlaylist?.activationId)
-		if (this._curPlaylist && this._rundownIds.length && this._activationId) {
+		this._rundownIds = this._currentPlaylist
+			? this._currentPlaylist.rundownIdsInOrder.map((r) => unprotectString(r))
+			: []
+		this._activationId = unprotectString(this._currentPlaylist?.activationId)
+		if (this._currentPlaylist && this._rundownIds.length && this._activationId) {
 			const sameSubscription =
-				isShallowEqual(this._rundownIds, prevRundownIds) && prevActivationId === this._activationId
+				areElementsShallowEqual(this._rundownIds, prevRundownIds) && prevActivationId === this._activationId
 			if (!sameSubscription) {
 				await new Promise(process.nextTick.bind(this))
 				if (!this._collectionName) return
 				if (!this._publicationName) return
-				if (!this._curPlaylist) return
+				if (!this._currentPlaylist) return
 				if (this._subscriptionId) this._coreHandler.unsubscribe(this._subscriptionId)
 				this._subscriptionId = await this._coreHandler.setupSubscription(
 					this._publicationName,
@@ -86,40 +130,25 @@ export class PartInstancesHandler
 				this._dbObserver.changed = (id: string) => {
 					void this.changed(id, 'changed').catch(this._logger.error)
 				}
+				this._dbObserver.removed = (id: string) => {
+					void this.changed(id, 'removed').catch(this._logger.error)
+				}
 
-				const collection = this._core.getCollection<DBPartInstance>(this._collectionName)
-				if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
-				const curPartInstance = this._curPlaylist?.currentPartInfo?.partInstanceId
-					? collection.findOne(this._curPlaylist.currentPartInfo.partInstanceId)
-					: undefined
-				const nextPartInstance = this._curPlaylist?.nextPartInfo?.partInstanceId
-					? collection.findOne(this._curPlaylist.nextPartInfo.partInstanceId)
-					: undefined
-				this._collectionData?.forEach((_pi, key) => {
-					if (PartInstanceName.current === key) this._collectionData?.set(key, curPartInstance)
-					else if (PartInstanceName.next === key) this._collectionData?.set(key, nextPartInstance)
-				})
-				await this.notify(this._collectionData)
+				const hasAnythingChanged = this.updateCollectionData()
+				if (hasAnythingChanged) {
+					await this.notify(this._collectionData)
+				}
 			} else if (this._subscriptionId) {
-				const collection = this._core.getCollection<DBPartInstance>(this._collectionName)
-				if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
-				const curPartInstance = this._curPlaylist?.currentPartInfo?.partInstanceId
-					? collection.findOne(this._curPlaylist.currentPartInfo.partInstanceId)
-					: undefined
-				const nextPartInstance = this._curPlaylist.nextPartInfo?.partInstanceId
-					? collection.findOne(this._curPlaylist.nextPartInfo.partInstanceId)
-					: undefined
-				this._collectionData?.forEach((_pi, key) => {
-					if (PartInstanceName.current === key) this._collectionData?.set(key, curPartInstance)
-					else if (PartInstanceName.next === key) this._collectionData?.set(key, nextPartInstance)
-				})
-				await this.notify(this._collectionData)
+				const hasAnythingChanged = this.updateCollectionData()
+				if (hasAnythingChanged) {
+					await this.notify(this._collectionData)
+				}
 			} else {
-				this._collectionData?.forEach((_pi, key) => this._collectionData?.set(key, undefined))
+				this.clearCollectionData()
 				await this.notify(this._collectionData)
 			}
 		} else {
-			this._collectionData?.forEach((_pi, key) => this._collectionData?.set(key, undefined))
+			this.clearCollectionData()
 			await this.notify(this._collectionData)
 		}
 	}
