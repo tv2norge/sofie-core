@@ -11,7 +11,7 @@ import { SegmentHandler } from './collections/segmentHandler'
 import { PartInstancesHandler } from './collections/partInstancesHandler'
 import { AdLibActionsHandler } from './collections/adLibActionsHandler'
 import { GlobalAdLibActionsHandler } from './collections/globalAdLibActionsHandler'
-import { RootChannel } from './topics/root'
+import { RootChannel, StatusChannels } from './topics/root'
 import { StudioTopic } from './topics/studioTopic'
 import { ActivePlaylistTopic } from './topics/activePlaylistTopic'
 import { AdLibsHandler } from './collections/adLibsHandler'
@@ -22,6 +22,10 @@ import { PartHandler } from './collections/partHandler'
 import { PartsHandler } from './collections/partsHandler'
 import { PieceInstancesHandler } from './collections/pieceInstancesHandler'
 import { AdLibsTopic } from './topics/adLibsTopic'
+import { BucketsTopic } from './topics/bucketsTopic'
+import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler'
+import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler'
+import { BucketsHandler } from './collections/bucketsHandler'
 
 export class LiveStatusServer {
 	_logger: Logger
@@ -42,11 +46,13 @@ export class LiveStatusServer {
 		const activePlaylistTopic = new ActivePlaylistTopic(this._logger)
 		const segmentsTopic = new SegmentsTopic(this._logger)
 		const adLibsTopic = new AdLibsTopic(this._logger)
+		const bucketsTopic = new BucketsTopic(this._logger)
 
-		rootChannel.addTopic('studio', studioTopic)
-		rootChannel.addTopic('activePlaylist', activePlaylistTopic)
-		rootChannel.addTopic('segments', segmentsTopic)
-		rootChannel.addTopic('adLibs', adLibsTopic)
+		rootChannel.addTopic(StatusChannels.studio, studioTopic)
+		rootChannel.addTopic(StatusChannels.activePlaylist, activePlaylistTopic)
+		rootChannel.addTopic(StatusChannels.segments, segmentsTopic)
+		rootChannel.addTopic(StatusChannels.adLibs, adLibsTopic)
+		rootChannel.addTopic(StatusChannels.buckets, bucketsTopic)
 
 		const studioHandler = new StudioHandler(this._logger, this._coreHandler)
 		await studioHandler.init()
@@ -78,6 +84,12 @@ export class LiveStatusServer {
 		await globalAdLibActionsHandler.init()
 		const globalAdLibsHandler = new GlobalAdLibsHandler(this._logger, this._coreHandler)
 		await globalAdLibsHandler.init()
+		const bucketsHandler = new BucketsHandler(this._logger, this._coreHandler)
+		await bucketsHandler.init()
+		const bucketAdLibsHandler = new BucketAdLibsHandler(this._logger, this._coreHandler)
+		await bucketAdLibsHandler.init()
+		const bucketAdLibActionsHandler = new BucketAdLibActionsHandler(this._logger, this._coreHandler)
+		await bucketAdLibActionsHandler.init()
 
 		// add observers for collection subscription updates
 		await playlistHandler.subscribe(rundownHandler)
@@ -114,6 +126,11 @@ export class LiveStatusServer {
 		await adLibsHandler.subscribe(adLibsTopic)
 		await globalAdLibActionsHandler.subscribe(adLibsTopic)
 		await globalAdLibsHandler.subscribe(adLibsTopic)
+
+		await showStyleBaseHandler.subscribe(bucketsTopic)
+		await bucketsHandler.subscribe(bucketsTopic)
+		await bucketAdLibsHandler.subscribe(bucketsTopic)
+		await bucketAdLibActionsHandler.subscribe(bucketsTopic)
 
 		const wss = new WebSocketServer({ port: 8080 })
 		wss.on('connection', (ws, request) => {

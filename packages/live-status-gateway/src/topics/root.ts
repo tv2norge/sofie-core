@@ -36,6 +36,7 @@ export enum StatusChannels {
 	activePlaylist = 'activePlaylist',
 	segments = 'segments',
 	adLibs = 'adLibs',
+	buckets = 'buckets',
 }
 
 interface RootMsg {
@@ -93,7 +94,7 @@ export class RootChannel extends WebSocketTopicBase implements WebSocketTopic {
 		}
 	}
 
-	addTopic(channel: string, topic: WebSocketTopic): void {
+	addTopic(channel: StatusChannels, topic: WebSocketTopic): void {
 		if (channel in StatusChannels) this._topics.set(channel, topic)
 	}
 
