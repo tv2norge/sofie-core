@@ -45,6 +45,7 @@ export interface AdLibStatus {
 	outputLayer: string
 	actionType: AdLibActionType[]
 	tags?: string[]
+	userData?: Record<string, unknown>
 }
 
 export class AdLibsTopic
@@ -106,6 +107,7 @@ export class AdLibsTopic
 						outputLayer: outputLayerName ?? 'invalid',
 						actionType: triggerModes,
 						tags: action.display.tags,
+						userData: action.userData,
 					})
 				})
 			)
@@ -152,6 +154,7 @@ export class AdLibsTopic
 						outputLayer: outputLayerName ?? 'invalid',
 						actionType: triggerModes,
 						tags: action.display.tags,
+						userData: action.userData,
 					})
 				})
 			)

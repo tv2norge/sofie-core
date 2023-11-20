@@ -28,7 +28,9 @@ export interface BucketsStatus {
 	buckets: BucketStatus[]
 }
 
-type BucketAdLibStatus = AdLibStatus
+interface BucketAdLibStatus extends AdLibStatus {
+	externalId: string
+}
 
 export interface BucketStatus {
 	id: string
@@ -72,13 +74,14 @@ export class BucketsTopic
 			const bucketAdLibs = (this._adLibsByBucket?.[bucketId] ?? []).map((adLib) => {
 				const sourceLayerName = this._sourceLayersMap.get(adLib.sourceLayerId)
 				const outputLayerName = this._outputLayersMap.get(adLib.outputLayerId)
-				return literal<AdLibStatus>({
+				return literal<BucketAdLibStatus>({
 					id: unprotectString(adLib._id),
 					name: adLib.name,
 					sourceLayer: sourceLayerName ?? 'invalid',
 					outputLayer: outputLayerName ?? 'invalid',
 					actionType: [],
 					tags: adLib.tags,
+					externalId: adLib.externalId,
 				})
 			})
 			const bucketAdLibActions = (this._adLibActionsByBucket?.[bucketId] ?? []).map((action) => {
@@ -96,13 +99,15 @@ export class BucketsTopic
 							})
 					  )
 					: []
-				return literal<AdLibStatus>({
+				return literal<BucketAdLibStatus>({
 					id: unprotectString(action._id),
 					name: interpollateTranslation(action.display.label.key, action.display.label.args),
 					sourceLayer: sourceLayerName ?? 'invalid',
 					outputLayer: outputLayerName ?? 'invalid',
 					actionType: triggerModes,
 					tags: action.display.tags,
+					userData: action.userData,
+					externalId: action.externalId,
 				})
 			})
 			return {
