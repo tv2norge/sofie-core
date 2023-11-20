@@ -7,7 +7,9 @@ import _ = require('underscore')
 export interface CurrentSegmentPart {
 	id: string
 	name: string
-	expectedDuration?: number
+	timing: {
+		expectedDurationMs?: number
+	}
 }
 
 export function getCurrentSegmentParts(
@@ -29,9 +31,13 @@ export function getCurrentSegmentParts(
 	})
 	return Object.values<{ _id: string | PartInstanceId; part: DBPart }>(partInstancesByPartId)
 		.sort((a, b) => a.part._rank - b.part._rank)
-		.map((partInstance) => ({
-			id: partInstance._id as string,
-			name: partInstance.part.title,
-			expectedDuration: partInstance.part.expectedDuration,
-		}))
+		.map(
+			(partInstance): CurrentSegmentPart => ({
+				id: partInstance._id as string,
+				name: partInstance.part.title,
+				timing: {
+					expectedDurationMs: partInstance.part.expectedDuration,
+				},
+			})
+		)
 }
