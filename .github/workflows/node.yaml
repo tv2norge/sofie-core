@@ -406,12 +406,12 @@ jobs:
           - node-version: 18.x
             package-name: openapi
           # No tests for the gateways yet
-          # - node-version: 16.x
+          # - node-version: 18.x
           #   package-name: playout-gateway
-          # - node-version: 16.x
+          # - node-version: 18.x
           #   package-name: mos-gateway
-          # - node-version: 16.x
-          #   package-name: live-status-gateway
+          - node-version: 18.x
+            package-name: live-status-gateway
 
     steps:
       - uses: actions/checkout@v4
