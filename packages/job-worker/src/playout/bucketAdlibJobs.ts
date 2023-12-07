@@ -58,7 +58,7 @@ export async function handleExecuteBucketAdLibOrAction(
 				playlistId: playlist._id,
 				userData: bucketAdLibAction.userData,
 				triggerMode: data.triggerMode,
-				blueprintsData: bucketAdLibAction.blueprintsData,
+				privateData: bucketAdLibAction.privateData,
 			})
 		}
 		throw UserError.create(UserErrorMessage.AdlibNotFound)

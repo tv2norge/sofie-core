@@ -15,7 +15,7 @@ import {
 } from '../dataModel/Ids'
 import { JSONBlob } from '@sofie-automation/shared-lib/dist/lib/JSONBlob'
 import { CoreRundownPlaylistSnapshot } from '../snapshots'
-import { ActionBlueprintsData, NoteSeverity } from '@sofie-automation/blueprints-integration'
+import { NoteSeverity } from '@sofie-automation/blueprints-integration'
 import { ITranslatableMessage } from '../TranslatableMessage'
 
 /** List of all Jobs performed by the Worker related to a certain Studio */
@@ -228,7 +228,7 @@ export interface ExecuteActionProps extends RundownPlayoutPropsBase {
 	actionId: string
 	userData: any
 	triggerMode?: string
-	blueprintsData: ActionBlueprintsData | undefined | null
+	privateData?: unknown | undefined | null
 }
 export interface ExecuteBucketAdLibOrActionProps extends RundownPlayoutPropsBase {
 	bucketId: BucketId
