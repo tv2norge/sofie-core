@@ -5468,7 +5468,7 @@ __metadata:
   resolution: "@sofie-automation/shared-lib@workspace:shared-lib"
   dependencies:
     "@mos-connection/model": ^3.0.4
-    timeline-state-resolver-types: 9.0.0-release50.7
+    timeline-state-resolver-types: 9.0.0-nightly-release50-20240123-133019-d7caf7d30.0
     tslib: ^2.4.0
     type-fest: ^2.19.0
   languageName: unknown
@@ -5844,16 +5844,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tv2media/v-connection@npm:^7.3.0":
-  version: 7.3.0
-  resolution: "@tv2media/v-connection@npm:7.3.0"
+"@tv2media/v-connection@npm:^7.3.2":
+  version: 7.3.2
+  resolution: "@tv2media/v-connection@npm:7.3.2"
   dependencies:
-    request: ^2.88.2
-    request-promise-native: ^1.0.9
+    got: 11.8.6
     uuid: ^8.3.2
     ws: ^7.4.6
-    xml2js: ^0.4.23
-  checksum: 574c15dbe4dbe726de3ce43acf1453dc58e9b74547efe4d7b0ffc95d28ae3c8a18b16d45aa8249788a1fa62b11882a9772bfbb6d3c3400e686b9093e20c98f0c
+    xml2js: ^0.6.2
+  checksum: 07786e4616f2225c0b98627f0828b4416b46fb8d34caf37f6e46b3530a992090d045e37a4a38522754dd31f7063e9703c18dccab7e44a1ba643d0f935d62804c
   languageName: node
   linkType: hard
 
@@ -8483,36 +8482,25 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"casparcg-connection@npm:^6.0.0":
-  version: 6.0.2
-  resolution: "casparcg-connection@npm:6.0.2"
+"casparcg-connection@npm:6.2.0":
+  version: 6.2.0
+  resolution: "casparcg-connection@npm:6.2.0"
   dependencies:
-    eventemitter3: ^4.0.7
+    eventemitter3: ^5.0.1
     tslib: ^2.5.0
-    xml2js: ^0.4.23
-  checksum: 6fc53cbb8cd588a9baf43a3b9abd7ed25e9b3fe0ebfcfa69fd33cb3fd6d72ad794a9e220d61d699052e7b38324f62aaa4a7cf267b4bc0507e6e0ec41dd5e7e62
+    xml2js: ^0.6.2
+  checksum: f12ccc55beb08c2c8b1e061cbcb52cb48dbcd262e9b8ae61bfa0c47cf4b920781121acdc87cc32915375247c722d296fef4368de07734b3055a78ccc741a5f02
   languageName: node
   linkType: hard
 
-"casparcg-connection@npm:^6.0.6":
-  version: 6.0.6
-  resolution: "casparcg-connection@npm:6.0.6"
+"casparcg-state@npm:3.0.3":
+  version: 3.0.3
+  resolution: "casparcg-state@npm:3.0.3"
   dependencies:
-    eventemitter3: ^4.0.7
-    tslib: ^2.5.0
-    xml2js: ^0.4.23
-  checksum: f2c02bdfaf29e1c43449a577f1b91fd5ce14ff91bdc6a48dbe5908c1420f5eaf9a3989454f750f93fbe8de399310e76a112e88866bcc3c18398e0e81b43f4dd1
-  languageName: node
-  linkType: hard
-
-"casparcg-state@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "casparcg-state@npm:3.0.2"
-  dependencies:
-    casparcg-connection: ^6.0.0
+    casparcg-connection: 6.2.0
     fast-clone: ^1.5.13
-    underscore: ^1.13.2
-  checksum: 8a705636e24741349dbb86db60bb07dc8309633f8e0389ff09c2552a747fda0e296be0c3eec22d36edeecf98e0cbdfd886a9d02d81433f2ccfb8559159f076bd
+    underscore: ^1.13.6
+  checksum: 9b86178e628c69b79d0d8362a7a1efab9d1f657d2ff583fbec3f6919258a79f8918c3ccff084397382cfbd6d1538385bc319ceda93bf516311d7f0b559507df0
   languageName: node
   linkType: hard
 
@@ -11192,6 +11180,13 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
+"eventemitter3@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "eventemitter3@npm:5.0.1"
+  checksum: 543d6c858ab699303c3c32e0f0f47fc64d360bf73c3daf0ac0b5079710e340d6fe9f15487f94e66c629f5f82cd1a8678d692f3dbb6f6fcd1190e1b97fcad36f8
+  languageName: node
+  linkType: hard
+
 "events@npm:^3.2.0, events@npm:^3.3.0":
   version: 3.3.0
   resolution: "events@npm:3.3.0"
@@ -12536,7 +12531,7 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"got@npm:^11.8.6":
+"got@npm:11.8.6, got@npm:^11.8.6":
   version: 11.8.6
   resolution: "got@npm:11.8.6"
   dependencies:
@@ -18420,8 +18415,8 @@ asn1@evs-broadcast/node-asn1:
     "@sofie-automation/shared-lib": 1.50.0-in-testing.5
     debug: ^4.3.3
     influx: ^5.9.3
-    timeline-state-resolver: 9.0.0-release50.7
-    tslib: ^2.4.0
+    timeline-state-resolver: 9.0.0-nightly-release50-20240123-133019-d7caf7d30.0
+    tslib: ^2.5.1
     underscore: ^1.13.4
     winston: ^3.8.2
   languageName: unknown
@@ -20118,30 +20113,6 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"request-promise-core@npm:1.1.4":
-  version: 1.1.4
-  resolution: "request-promise-core@npm:1.1.4"
-  dependencies:
-    lodash: ^4.17.19
-  peerDependencies:
-    request: ^2.34
-  checksum: c798bafd552961e36fbf5023b1d081e81c3995ab390f1bc8ef38a711ba3fe4312eb94dbd61887073d7356c3499b9380947d7f62faa805797c0dc50f039425699
-  languageName: node
-  linkType: hard
-
-"request-promise-native@npm:^1.0.9":
-  version: 1.0.9
-  resolution: "request-promise-native@npm:1.0.9"
-  dependencies:
-    request-promise-core: 1.1.4
-    stealthy-require: ^1.1.1
-    tough-cookie: ^2.3.3
-  peerDependencies:
-    request: ^2.34
-  checksum: 3e2c694eefac88cb20beef8911ad57a275ab3ccbae0c4ca6c679fffb09d5fd502458aab08791f0814ca914b157adab2d4e472597c97a73be702918e41725ed69
-  languageName: node
-  linkType: hard
-
 "request@npm:^2.88.2":
   version: 2.88.2
   resolution: "request@npm:2.88.2"
@@ -21431,13 +21402,6 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"stealthy-require@npm:^1.1.1":
-  version: 1.1.1
-  resolution: "stealthy-require@npm:1.1.1"
-  checksum: 6805b857a9f3a6a1079fc6652278038b81011f2a5b22cbd559f71a6c02087e6f1df941eb10163e3fdc5391ab5807aa46758d4258547c1f5ede31e6d9bfda8dd3
-  languageName: node
-  linkType: hard
-
 "stream-chopper@npm:^3.0.1":
   version: 3.0.1
   resolution: "stream-chopper@npm:3.0.1"
@@ -22104,24 +22068,24 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"timeline-state-resolver-types@npm:9.0.0-release50.7":
-  version: 9.0.0-release50.7
-  resolution: "timeline-state-resolver-types@npm:9.0.0-release50.7"
+"timeline-state-resolver-types@npm:9.0.0-nightly-release50-20240123-133019-d7caf7d30.0":
+  version: 9.0.0-nightly-release50-20240123-133019-d7caf7d30.0
+  resolution: "timeline-state-resolver-types@npm:9.0.0-nightly-release50-20240123-133019-d7caf7d30.0"
   dependencies:
     tslib: ^2.5.1
-  checksum: 258a25a17fdbe99ec45480f4d2b8c185c207c2424d863e864f5aebf7093a1eeb55c987d0a964bc72a154666748ca56f2aeb26713aee2ac11d86fa79678a12bda
+  checksum: b9e7e8da6716c3d291c1ba4cbd4cac4bda330893dd0f27fbbaadc44615d91e8fefcaf3c124b107475f862c2c5c446414aaa0f412898e2debb2a6879ed96f9f69
   languageName: node
   linkType: hard
 
-"timeline-state-resolver@npm:9.0.0-release50.7":
-  version: 9.0.0-release50.7
-  resolution: "timeline-state-resolver@npm:9.0.0-release50.7"
+"timeline-state-resolver@npm:9.0.0-nightly-release50-20240123-133019-d7caf7d30.0":
+  version: 9.0.0-nightly-release50-20240123-133019-d7caf7d30.0
+  resolution: "timeline-state-resolver@npm:9.0.0-nightly-release50-20240123-133019-d7caf7d30.0"
   dependencies:
-    "@tv2media/v-connection": ^7.3.0
+    "@tv2media/v-connection": ^7.3.2
     atem-connection: 2.5.0
     atem-state: 0.13.0
-    casparcg-connection: ^6.0.6
-    casparcg-state: ^3.0.2
+    casparcg-connection: 6.2.0
+    casparcg-state: 3.0.3
     debug: ^4.3.4
     deepmerge: ^4.3.1
     emberplus-connection: ^0.2.1
@@ -22137,7 +22101,7 @@ asn1@evs-broadcast/node-asn1:
     sprintf-js: ^1.1.2
     superfly-timeline: ^8.3.1
     threadedclass: ^1.2.1
-    timeline-state-resolver-types: 9.0.0-release50.7
+    timeline-state-resolver-types: 9.0.0-nightly-release50-20240123-133019-d7caf7d30.0
     tslib: ^2.5.1
     tv-automation-quantel-gateway-client: ^3.1.7
     underscore: ^1.13.6
@@ -22145,7 +22109,7 @@ asn1@evs-broadcast/node-asn1:
     utf-8-validate: ^5.0.10
     ws: ^7.5.9
     xml-js: ^1.6.11
-  checksum: bbe7cb56a54ea57c999c85798f97d4413eb57cbf1037db1341a66920e803ed62149d1e398f57ff7550a24222f42922eb80e84dfa32cd67e9ea4b9f9cb00779d3
+  checksum: cac0269fb0b055e89a927aadeeb4ebbfe5c1e768979fad4612cc8fba69da3a6d3de80240868032839d22c7383ee303683ba0ae0ce3f2a9cea3a6505da1040486
   languageName: node
   linkType: hard
 
@@ -22279,16 +22243,6 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"tough-cookie@npm:^2.3.3, tough-cookie@npm:~2.5.0":
-  version: 2.5.0
-  resolution: "tough-cookie@npm:2.5.0"
-  dependencies:
-    psl: ^1.1.28
-    punycode: ^2.1.1
-  checksum: 16a8cd090224dd176eee23837cbe7573ca0fa297d7e468ab5e1c02d49a4e9a97bb05fef11320605eac516f91d54c57838a25864e8680e27b069a5231d8264977
-  languageName: node
-  linkType: hard
-
 "tough-cookie@npm:^4.0.0":
   version: 4.1.2
   resolution: "tough-cookie@npm:4.1.2"
@@ -22298,6 +22252,16 @@ asn1@evs-broadcast/node-asn1:
     universalify: ^0.2.0
     url-parse: ^1.5.3
   checksum: a7359e9a3e875121a84d6ba40cc184dec5784af84f67f3a56d1d2ae39b87c0e004e6ba7c7331f9622a7d2c88609032473488b28fe9f59a1fec115674589de39a
+  languageName: node
+  linkType: hard
+
+"tough-cookie@npm:~2.5.0":
+  version: 2.5.0
+  resolution: "tough-cookie@npm:2.5.0"
+  dependencies:
+    psl: ^1.1.28
+    punycode: ^2.1.1
+  checksum: 16a8cd090224dd176eee23837cbe7573ca0fa297d7e468ab5e1c02d49a4e9a97bb05fef11320605eac516f91d54c57838a25864e8680e27b069a5231d8264977
   languageName: node
   linkType: hard
 
@@ -22896,7 +22860,7 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"underscore@npm:^1.13.2, underscore@npm:^1.13.4, underscore@npm:^1.13.6":
+"underscore@npm:^1.13.4, underscore@npm:^1.13.6":
   version: 1.13.6
   resolution: "underscore@npm:1.13.6"
   checksum: d5cedd14a9d0d91dd38c1ce6169e4455bb931f0aaf354108e47bd46d3f2da7464d49b2171a5cf786d61963204a42d01ea1332a903b7342ad428deaafaf70ec36
@@ -24260,13 +24224,13 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"xml2js@npm:^0.4.23":
-  version: 0.4.23
-  resolution: "xml2js@npm:0.4.23"
+"xml2js@npm:^0.6.2":
+  version: 0.6.2
+  resolution: "xml2js@npm:0.6.2"
   dependencies:
     sax: ">=0.6.0"
     xmlbuilder: ~11.0.0
-  checksum: ca0cf2dfbf6deeaae878a891c8fbc0db6fd04398087084edf143cdc83d0509ad0fe199b890f62f39c4415cf60268a27a6aed0d343f0658f8779bd7add690fa98
+  checksum: 458a83806193008edff44562c0bdb982801d61ee7867ae58fd35fab781e69e17f40dfeb8fc05391a4648c9c54012066d3955fe5d993ffbe4dc63399023f32ac2
   languageName: node
   linkType: hard
 
