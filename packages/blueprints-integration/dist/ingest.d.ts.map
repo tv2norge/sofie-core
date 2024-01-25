@@ -1,0 +1,1 @@
+{"version":3,"file":"ingest.d.ts","sourceRoot":"","sources":["../src/ingest.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,MAAM,2DAA2D,CAAA;AACzF,OAAO,EAAE,uBAAuB,EAAE,MAAM,aAAa,CAAA;AAErD,OAAO,EACN,UAAU,EACV,cAAc,EACd,aAAa,EACb,aAAa,EACb,WAAW,GACX,MAAM,2DAA2D,CAAA;AAElE,yDAAyD;AACzD,MAAM,WAAW,qBAAsB,SAAQ,aAAa;IAC3D,QAAQ,EAAE,uBAAuB,GAAG,SAAS,CAAA;CAC7C"}
