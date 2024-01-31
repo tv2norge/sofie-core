@@ -30,7 +30,9 @@ import { CURRENT_SYSTEM_VERSION } from '../../../migration/currentSystemVersion'
 import {
 	AdLibActionId,
 	BlueprintId,
+	BucketAdLibActionId,
 	BucketAdLibId,
+	BucketId,
 	PartId,
 	PartInstanceId,
 	PeripheralDeviceId,
@@ -53,7 +55,9 @@ import {
 	AdLibActions,
 	AdLibPieces,
 	Blueprints,
+	BucketAdLibActions,
 	BucketAdLibs,
+	Buckets,
 	PeripheralDevices,
 	RundownBaselineAdLibActions,
 	RundownBaselineAdLibPieces,
@@ -90,6 +94,8 @@ import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { executePeripheralDeviceFunction } from '../../peripheralDevice/executeFunction'
 import { makeMeteorConnectionFromKoa } from '../koa'
 import bodyParser from 'koa-bodyparser'
+import { APIFactory, ServerAPIContext } from './types'
+import { registerRoutes as registerBucketsRoutes } from './buckets'
 
 function restAPIUserEvent(
 	ctx: Koa.ParameterizedContext<
@@ -101,7 +107,7 @@ function restAPIUserEvent(
 	return `rest_api_${ctx.method}_${ctx.URL.origin}/api/v1.0${ctx.URL.pathname}}`
 }
 
-class ServerRestAPI implements RestAPI {
+export class ServerRestAPI implements RestAPI {
 	static getMethodContext(connection: Meteor.Connection): MethodContextAPI {
 		return {
 			userId: null,
@@ -116,7 +122,7 @@ class ServerRestAPI implements RestAPI {
 		}
 	}
 
-	static getCredentials(_connection: Meteor.Connection): Credentials {
+	static getCredentials(): Credentials {
 		return { userId: null }
 	}
 
@@ -184,27 +190,30 @@ class ServerRestAPI implements RestAPI {
 		event: string,
 		rundownPlaylistId: RundownPlaylistId,
 		adLibId: AdLibActionId | RundownBaselineAdLibActionId | PieceId | BucketAdLibId,
-		triggerMode?: string | null
+		triggerMode?: string | null,
+		userData?: any | null
 	): Promise<ClientAPI.ClientResponse<object>> {
 		const baselineAdLibPiece = RundownBaselineAdLibPieces.findOneAsync(adLibId as PieceId, {
 			projection: { _id: 1 },
 		})
 		const segmentAdLibPiece = AdLibPieces.findOneAsync(adLibId as PieceId, { projection: { _id: 1 } })
 		const bucketAdLibPiece = BucketAdLibs.findOneAsync(adLibId as BucketAdLibId, { projection: { _id: 1 } })
-		const [baselineAdLibDoc, segmentAdLibDoc, bucketAdLibDoc, adLibAction, baselineAdLibAction] = await Promise.all(
-			[
+		const [baselineAdLibDoc, segmentAdLibDoc, bucketAdLibDoc, adLibAction, baselineAdLibAction, bucketAdLibAction] =
+			await Promise.all([
 				baselineAdLibPiece,
 				segmentAdLibPiece,
 				bucketAdLibPiece,
 				AdLibActions.findOneAsync(adLibId as AdLibActionId, {
-					projection: { _id: 1, actionId: 1, userData: 1 },
+					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
 				}),
 				RundownBaselineAdLibActions.findOneAsync(adLibId as RundownBaselineAdLibActionId, {
-					projection: { _id: 1, actionId: 1, userData: 1 },
+					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
 				}),
-			]
-		)
-		const adLibActionDoc = adLibAction ?? baselineAdLibAction
+				BucketAdLibActions.findOneAsync(adLibId as BucketAdLibActionId, {
+					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
+				}),
+			])
+		const adLibActionDoc = adLibAction ?? baselineAdLibAction ?? bucketAdLibAction
 		const regularAdLibDoc = baselineAdLibDoc ?? segmentAdLibDoc ?? bucketAdLibDoc
 		if (regularAdLibDoc) {
 			// This is an AdLib Piece
@@ -290,8 +299,9 @@ class ServerRestAPI implements RestAPI {
 					playlistId: rundownPlaylistId,
 					actionDocId: adLibActionDoc._id,
 					actionId: adLibActionDoc.actionId,
-					userData: adLibActionDoc.userData,
-					triggerMode: triggerMode ? triggerMode : undefined,
+					userData: userData ?? adLibActionDoc.userData,
+					triggerMode: triggerMode ?? undefined,
+					privateData: adLibActionDoc.privateData,
 				}
 			)
 		} else {
@@ -300,6 +310,62 @@ class ServerRestAPI implements RestAPI {
 				412
 			)
 		}
+	}
+	async executeBucketAdLib(
+		connection: Meteor.Connection,
+		event: string,
+		rundownPlaylistId: RundownPlaylistId,
+		bucketId: BucketId,
+		externalId: string,
+		triggerMode?: string | null
+	): Promise<ClientAPI.ClientResponse<object>> {
+		const bucketPromise = Buckets.findOneAsync(bucketId, { projection: { _id: 1 } })
+		const bucketAdlibPromise = BucketAdLibs.findOneAsync({ bucketId, externalId }, { projection: { _id: 1 } })
+		const bucketAdlibActionPromise = BucketAdLibActions.findOneAsync(
+			{ bucketId, externalId },
+			{
+				projection: { _id: 1 },
+			}
+		)
+		const [bucket, bucketAdlib, bucketAdlibAction] = await Promise.all([
+			bucketPromise,
+			bucketAdlibPromise,
+			bucketAdlibActionPromise,
+		])
+		if (!bucket) {
+			return ClientAPI.responseError(
+				UserError.from(new Error(`Bucket ${bucketId} not found`), UserErrorMessage.BucketNotFound),
+				412
+			)
+		}
+		if (!bucketAdlib && !bucketAdlibAction) {
+			return ClientAPI.responseError(
+				UserError.from(
+					new Error(`No adLib with Id ${externalId}, in bucket ${bucketId}`),
+					UserErrorMessage.AdlibNotFound
+				),
+				412
+			)
+		}
+
+		return ServerClientAPI.runUserActionInLogForPlaylistOnWorker(
+			ServerRestAPI.getMethodContext(connection),
+			event,
+			getCurrentTime(),
+			rundownPlaylistId,
+			() => {
+				check(rundownPlaylistId, String)
+				check(bucketId, String)
+				check(externalId, String)
+			},
+			StudioJobs.ExecuteBucketAdLibOrAction,
+			{
+				playlistId: rundownPlaylistId,
+				bucketId,
+				externalId,
+				triggerMode: triggerMode ?? undefined,
+			}
+		)
 	}
 	async moveNextPart(
 		connection: Meteor.Connection,
@@ -496,7 +562,7 @@ class ServerRestAPI implements RestAPI {
 		studioId: StudioId,
 		routeSetId: string,
 		state: boolean
-	) {
+	): Promise<ClientAPI.ClientResponse<void>> {
 		return ServerClientAPI.runUserActionInLog(
 			ServerRestAPI.getMethodContext(connection),
 			event,
@@ -508,10 +574,7 @@ class ServerRestAPI implements RestAPI {
 				check(routeSetId, String)
 				check(state, Boolean)
 
-				const access = await StudioContentWriteAccess.routeSet(
-					ServerRestAPI.getCredentials(connection),
-					studioId
-				)
+				const access = await StudioContentWriteAccess.routeSet(ServerRestAPI.getCredentials(), studioId)
 				return ServerPlayoutAPI.switchRouteSet(access, routeSetId, state)
 			}
 		)
@@ -737,7 +800,7 @@ class ServerRestAPI implements RestAPI {
 		_event: string,
 		studioId: StudioId,
 		deviceId: PeripheralDeviceId
-	) {
+	): Promise<ClientAPI.ClientResponse<void>> {
 		const studio = await Studios.findOneAsync(studioId)
 		if (!studio)
 			return ClientAPI.responseError(
@@ -1237,21 +1300,23 @@ function extractErrorDetails(e: unknown): string[] | undefined {
 	}
 }
 
-function sofieAPIRequest<Params, Body, Response>(
+function sofieAPIRequest<Params, Body, Response, API = ServerRestAPI>(
 	method: 'get' | 'post' | 'put' | 'delete',
 	route: string,
 	errMsgs: Map<number, UserErrorMessage[]>,
 	handler: (
-		serverAPI: RestAPI,
+		serverAPI: API,
 		connection: Meteor.Connection,
 		event: string,
 		params: Params,
 		body: Body
-	) => Promise<ClientAPI.ClientResponse<Response>>
+	) => Promise<ClientAPI.ClientResponse<Response>>,
+	serverAPIFactory: APIFactory<API> = { createServerAPI: () => new ServerRestAPI() as unknown as API } // TODO: merge conflict with R51
 ) {
 	koaRouter[method](route, async (ctx, next) => {
 		try {
-			const serverAPI = new ServerRestAPI()
+			const context = new APIContext()
+			const serverAPI = serverAPIFactory.createServerAPI(context)
 			const response = await handler(
 				serverAPI,
 				makeMeteorConnectionFromKoa(ctx),
@@ -1346,7 +1411,7 @@ sofieAPIRequest<{ playlistId: string }, never, void>(
 	}
 )
 
-sofieAPIRequest<{ playlistId: string }, { adLibId: string; actionType?: string }, object>(
+sofieAPIRequest<{ playlistId: string }, { adLibId: string; actionType?: string; userData?: any }, object>(
 	'post',
 	'/playlists/:playlistId/execute-adlib',
 	new Map([
@@ -1360,12 +1425,60 @@ sofieAPIRequest<{ playlistId: string }, { adLibId: string; actionType?: string }
 		)
 		const actionTypeObj = body
 		const triggerMode = actionTypeObj ? (actionTypeObj as { actionType: string }).actionType : undefined
-		logger.info(`API POST: execute-adlib ${rundownPlaylistId} ${adLibId} - triggerMode: ${triggerMode}`)
+		logger.info(
+			`API POST: execute-adlib ${rundownPlaylistId} ${adLibId} - triggerMode: ${triggerMode}, userData: ${JSON.stringify(
+				body.userData
+			)}`
+		)
 
 		check(adLibId, String)
 		check(rundownPlaylistId, String)
 
-		return await serverAPI.executeAdLib(connection, event, rundownPlaylistId, adLibId, triggerMode)
+		return await serverAPI.executeAdLib(connection, event, rundownPlaylistId, adLibId, triggerMode, body.userData)
+	}
+)
+
+sofieAPIRequest<
+	{ playlistId: string },
+	{ bucketId: string; externalId: string; actionType?: string; userData?: any },
+	object
+>(
+	'post',
+	'/playlists/:playlistId/execute-bucket-adlib',
+	new Map([
+		[404, [UserErrorMessage.RundownPlaylistNotFound]],
+		[
+			412,
+			[
+				UserErrorMessage.InactiveRundown,
+				UserErrorMessage.NoCurrentPart,
+				UserErrorMessage.AdlibNotFound,
+				UserErrorMessage.BucketNotFound,
+			],
+		],
+	]),
+	async (serverAPI, connection, event, params, body) => {
+		const rundownPlaylistId = protectString<RundownPlaylistId>(params.playlistId)
+		const bucketId = protectString<BucketId>(body.bucketId)
+		const adLibExternalId = body.externalId
+		const actionTypeObj = body
+		const triggerMode = actionTypeObj ? (actionTypeObj as { actionType: string }).actionType : undefined
+		logger.info(
+			`API POST: execute-bucket-adlib ${rundownPlaylistId} ${bucketId} ${adLibExternalId} - triggerMode: ${triggerMode}`
+		)
+
+		check(rundownPlaylistId, String)
+		check(bucketId, String)
+		check(adLibExternalId, String)
+
+		return await serverAPI.executeBucketAdLib(
+			connection,
+			event,
+			rundownPlaylistId,
+			bucketId,
+			adLibExternalId,
+			triggerMode
+		)
 	}
 )
 
@@ -1939,3 +2052,25 @@ sofieAPIRequest<never, { inputs: MigrationData }, void>(
 		return await serverAPI.applyPendingMigrations(connection, event, inputs)
 	}
 )
+
+class APIContext implements ServerAPIContext {
+	public getMethodContext(connection: Meteor.Connection): MethodContextAPI {
+		return {
+			userId: null,
+			connection,
+			isSimulation: false,
+			setUserId: () => {
+				/* no-op */
+			},
+			unblock: () => {
+				/* no-op */
+			},
+		}
+	}
+
+	public getCredentials(): Credentials {
+		return { userId: null }
+	}
+}
+
+registerBucketsRoutes(sofieAPIRequest)

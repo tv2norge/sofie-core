@@ -42,7 +42,10 @@ meteorPublish(PubSub.bucketAdLibPieces, async function (selector, _token) {
 	const modifier: FindOptions<BucketAdLib> = {
 		fields: {},
 	}
-	if (isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) {
+	if (
+		(isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) ||
+		(isProtectedString(selector.studioId) && (await StudioReadAccess.studio(selector.studioId, this)))
+	) {
 		return BucketAdLibs.findWithCursor(selector, modifier)
 	}
 	return null
@@ -53,7 +56,10 @@ meteorPublish(PubSub.bucketAdLibActions, async function (selector, _token) {
 	const modifier: FindOptions<BucketAdLibAction> = {
 		fields: {},
 	}
-	if (isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) {
+	if (
+		(isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) ||
+		(isProtectedString(selector.studioId) && (await StudioReadAccess.studio(selector.studioId, this)))
+	) {
 		return BucketAdLibActions.findWithCursor(selector, modifier)
 	}
 	return null
