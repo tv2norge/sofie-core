@@ -49,7 +49,7 @@ export class PieceInstancesHandler
 	}
 
 	async changed(id: string, changeType: string): Promise<void> {
-		this._logger.info(`${this._name} ${changeType} ${id}`)
+		this.logDocumentChange(id, changeType)
 		if (!this._collectionName || this._subscriptionPending) return
 		this._throttledUpdateAndNotify()
 	}
@@ -95,10 +95,10 @@ export class PieceInstancesHandler
 		const prevPartInstanceIds = this._partInstanceIds
 		const prevActivationId = this._activationId
 
-		this._logger.info(
-			`${this._name} received playlist update ${data?._id}, active ${
-				data?.activationId ? true : false
-			} from ${source}`
+		this.logUpdateReceived(
+			'playlist',
+			source,
+			`rundownPlaylistId ${data?._id}, active ${data?.activationId ? true : false}`
 		)
 		this._currentPlaylist = data
 		if (!this._collectionName) return
@@ -147,12 +147,10 @@ export class PieceInstancesHandler
 				// nothing relevant has changed
 			} else {
 				this.clearCollectionData()
-				console.log('notify')
 				await this.notify(this._collectionData)
 			}
 		} else {
 			this.clearCollectionData()
-			console.log('notify')
 			await this.notify(this._collectionData)
 		}
 	}

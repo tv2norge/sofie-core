@@ -134,19 +134,19 @@ export class BucketsTopic
 		switch (source) {
 			case BucketsHandler.name: {
 				const buckets = data ? (data as Bucket[]) : []
-				this._logger.info(`${this._name} received buckets update from ${source}`)
+				this.logUpdateReceived('buckets', source)
 				this._buckets = buckets
 				break
 			}
 			case BucketAdLibActionsHandler.name: {
 				const adLibActions = data ? (data as BucketAdLibAction[]) : []
-				this._logger.info(`${this._name} received adLibActions update from ${source}`)
+				this.logUpdateReceived('adLibActions', source)
 				this._adLibActionsByBucket = _.groupBy(adLibActions, 'bucketId')
 				break
 			}
 			case BucketAdLibsHandler.name: {
 				const adLibs = data ? (data as BucketAdLib[]) : []
-				this._logger.info(`${this._name} received adLibs update from ${source}`)
+				this.logUpdateReceived('adLibs', source)
 				this._adLibsByBucket = _.groupBy(adLibs, 'bucketId')
 				break
 			}
@@ -157,18 +157,18 @@ export class BucketsTopic
 				const outputLayers: OutputLayers = data
 					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
 					: {}
-				this._logger.info(
-					`${this._name} received showStyleBase update with sourceLayers [${Object.values<
-						ISourceLayer | undefined
-					>(sourceLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`
 				)
-				this._logger.info(
-					`${this._name} received showStyleBase update with outputLayers [${Object.values<
-						IOutputLayer | undefined
-					>(outputLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`

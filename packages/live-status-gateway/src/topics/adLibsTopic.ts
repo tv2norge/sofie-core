@@ -206,31 +206,31 @@ export class AdLibsTopic
 			case PlaylistHandler.name: {
 				const previousPlaylistId = this._activePlaylist?._id
 				this._activePlaylist = data as DBRundownPlaylist | undefined
-				this._logger.info(`${this._name} received playlist update from ${source}`)
+				this.logUpdateReceived('playlist', source)
 				if (previousPlaylistId === this._activePlaylist?._id) return
 				break
 			}
 			case AdLibActionsHandler.name: {
 				const adLibActions = data ? (data as AdLibAction[]) : []
-				this._logger.info(`${this._name} received adLibActions update from ${source}`)
+				this.logUpdateReceived('adLibActions', source)
 				this._adLibActions = adLibActions
 				break
 			}
 			case GlobalAdLibActionsHandler.name: {
 				const globalAdLibActions = data ? (data as RundownBaselineAdLibAction[]) : []
-				this._logger.info(`${this._name} received globalAdLibActions update from ${source}`)
+				this.logUpdateReceived('globalAdLibActions', source)
 				this._globalAdLibActions = globalAdLibActions
 				break
 			}
 			case AdLibsHandler.name: {
 				const adLibs = data ? (data as AdLibPiece[]) : []
-				this._logger.info(`${this._name} received adLibs update from ${source}`)
+				this.logUpdateReceived('adLibs', source)
 				this._abLibs = adLibs
 				break
 			}
 			case GlobalAdLibsHandler.name: {
 				const globalAdLibs = data ? (data as RundownBaselineAdLibItem[]) : []
-				this._logger.info(`${this._name} received globalAdLibs update from ${source}`)
+				this.logUpdateReceived('globalAdLibs', source)
 				this._globalAdLibs = globalAdLibs
 				break
 			}
@@ -241,18 +241,18 @@ export class AdLibsTopic
 				const outputLayers: OutputLayers = data
 					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
 					: {}
-				this._logger.info(
-					`${this._name} received showStyleBase update with sourceLayers [${Object.values<
-						ISourceLayer | undefined
-					>(sourceLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`
 				)
-				this._logger.info(
-					`${this._name} received showStyleBase update with outputLayers [${Object.values<
-						IOutputLayer | undefined
-					>(outputLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`

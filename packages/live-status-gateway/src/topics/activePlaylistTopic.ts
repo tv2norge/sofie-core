@@ -193,8 +193,10 @@ export class ActivePlaylistTopic
 		switch (source) {
 			case PlaylistHandler.name: {
 				const rundownPlaylist = data ? (data as DBRundownPlaylist) : undefined
-				this._logger.info(
-					`${this._name} received playlist update ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
+				this.logUpdateReceived(
+					'playlist',
+					source,
+					`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
 				)
 				this._activePlaylist = unprotectString(rundownPlaylist?.activationId) ? rundownPlaylist : undefined
 				break
@@ -206,18 +208,18 @@ export class ActivePlaylistTopic
 				const outputLayers: OutputLayers = data
 					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
 					: {}
-				this._logger.info(
-					`${this._name} received showStyleBase update with sourceLayers [${Object.values<
-						ISourceLayer | undefined
-					>(sourceLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`
 				)
-				this._logger.info(
-					`${this._name} received showStyleBase update with outputLayers [${Object.values<
-						IOutputLayer | undefined
-					>(outputLayers).map(
+				this.logUpdateReceived(
+					'showStyleBase',
+					source,
+					`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
 						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 						(s) => s!.name
 					)}]`
@@ -236,8 +238,10 @@ export class ActivePlaylistTopic
 			}
 			case PartInstancesHandler.name: {
 				const partInstances = data as SelectedPartInstances
-				this._logger.info(
-					`${this._name} received partInstances update from ${source} with ${partInstances.inCurrentSegment.length} instances in segment`
+				this.logUpdateReceived(
+					'partInstances',
+					source,
+					`${partInstances.inCurrentSegment.length} instances in segment`
 				)
 				this._currentPartInstance = partInstances.current
 				this._nextPartInstance = partInstances.next
@@ -247,12 +251,12 @@ export class ActivePlaylistTopic
 			}
 			case PartsHandler.name: {
 				this._partsBySegmentId = _.groupBy(data as DBPart[], 'segmentId')
-				this._logger.info(`${this._name} received parts update from ${source}`)
+				this.logUpdateReceived('parts', source)
 				break
 			}
 			case PieceInstancesHandler.name: {
 				const pieceInstances = data as SelectedPieceInstances
-				this._logger.info(`${this._name} received pieceInstances update from ${source}`)
+				this.logUpdateReceived('pieceInstances', source)
 				this._pieceInstances = pieceInstances
 				break
 			}
