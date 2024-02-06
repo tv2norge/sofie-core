@@ -23,8 +23,9 @@ interface PartStatus {
 	id: string
 	segmentId: string
 	name: string
-	autoNext?: boolean
+	autoNext: boolean | undefined
 	pieces: PieceStatus[]
+	publicData: unknown
 }
 
 interface CurrentPartStatus extends PartStatus {
@@ -45,6 +46,7 @@ export interface ActivePlaylistStatus {
 	currentPart: CurrentPartStatus | null
 	currentSegment: CurrentSegmentStatus | null
 	nextPart: PartStatus | null
+	publicData: unknown
 }
 
 export class ActivePlaylistTopic
@@ -83,14 +85,7 @@ export class ActivePlaylistTopic
 	}
 
 	sendStatus(subscribers: Iterable<WebSocket>): void {
-		if (
-			this._currentPartInstance?._id !== this._activePlaylist?.currentPartInfo?.partInstanceId ||
-			this._nextPartInstance?._id !== this._activePlaylist?.nextPartInfo?.partInstanceId ||
-			(this._pieceInstancesInCurrentPartInstance?.[0] &&
-				this._pieceInstancesInCurrentPartInstance?.[0].partInstanceId !== this._currentPartInstance?._id) ||
-			(this._pieceInstancesInNextPartInstance?.[0] &&
-				this._pieceInstancesInNextPartInstance?.[0].partInstanceId !== this._nextPartInstance?._id)
-		) {
+		if (this.isDataInconsistent()) {
 			// data is inconsistent, let's wait
 			return
 		}
@@ -121,6 +116,7 @@ export class ActivePlaylistTopic
 										this._pieceInstancesInCurrentPartInstance?.map((piece) =>
 											toPieceStatus(piece, this._showStyleBaseExt)
 										) ?? [],
+									publicData: currentPart.publicData,
 							  })
 							: null,
 					currentSegment:
@@ -149,8 +145,10 @@ export class ActivePlaylistTopic
 									this._pieceInstancesInCurrentPartInstance?.map((piece) =>
 										toPieceStatus(piece, this._showStyleBaseExt)
 									) ?? [],
+								publicData: nextPart.publicData,
 						  })
 						: null,
+					publicData: this._activePlaylist.publicData,
 			  })
 			: literal<ActivePlaylistStatus>({
 					event: 'activePlaylist',
@@ -160,11 +158,23 @@ export class ActivePlaylistTopic
 					currentPart: null,
 					currentSegment: null,
 					nextPart: null,
+					publicData: undefined,
 			  })
 
 		for (const subscriber of subscribers) {
 			this.sendMessage(subscriber, message)
 		}
+	}
+
+	private isDataInconsistent() {
+		return (
+			this._currentPartInstance?._id !== this._activePlaylist?.currentPartInfo?.partInstanceId ||
+			this._nextPartInstance?._id !== this._activePlaylist?.nextPartInfo?.partInstanceId ||
+			(this._pieceInstancesInCurrentPartInstance?.[0] &&
+				this._pieceInstancesInCurrentPartInstance?.[0].partInstanceId !== this._currentPartInstance?._id) ||
+			(this._pieceInstancesInNextPartInstance?.[0] &&
+				this._pieceInstancesInNextPartInstance?.[0].partInstanceId !== this._nextPartInstance?._id)
+		)
 	}
 
 	async update(
