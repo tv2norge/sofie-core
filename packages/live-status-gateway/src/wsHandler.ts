@@ -36,8 +36,22 @@ export abstract class WebSocketTopicBase {
 
 	sendMessage(ws: WebSocket, msg: object): void {
 		const msgStr = JSON.stringify(msg)
-		this._logger.info(`Send ${this._name} message '${msgStr}'`)
+		this._logger.debug(`Send ${this._name} message '${msgStr}'`)
 		ws.send(msgStr)
+	}
+
+	sendHeartbeat(ws: WebSocket): void {
+		const msgStr = JSON.stringify({ event: 'heartbeat' })
+		this._logger.silly(`Send ${this._name} message '${msgStr}'`)
+		ws.send(msgStr)
+	}
+
+	protected logUpdateReceived(collectionName: string, source: string, extraInfo?: string): void {
+		let message = `${this._name} received ${collectionName} update from ${source}`
+		if (extraInfo) {
+			message += `, ${extraInfo}`
+		}
+		this._logger.debug(message)
 	}
 }
 
@@ -64,7 +78,7 @@ export abstract class CollectionBase<T> {
 
 	constructor(
 		name: string,
-		collection: CollectionName | undefined,
+		collection: CollectionName,
 		publication: string | undefined,
 		logger: Logger,
 		coreHandler: CoreHandler
@@ -104,6 +118,32 @@ export abstract class CollectionBase<T> {
 		for (const observer of this._observers) {
 			await observer.update(this._name, data)
 		}
+	}
+
+	protected logDocumentChange(documentId: string, changeType: string): void {
+		this._logger.silly(`${this._name} ${changeType} ${documentId}`)
+	}
+
+	protected logUpdateReceived(collectionName: string, updateCount: number | undefined): void
+	protected logUpdateReceived(collectionName: string, source: string, extraInfo?: string): void
+	protected logUpdateReceived(
+		collectionName: string,
+		sourceOrUpdateCount: string | number | undefined,
+		extraInfo?: string
+	): void {
+		if (typeof sourceOrUpdateCount === 'string') {
+			let message = `${this._name} received ${collectionName} update from ${sourceOrUpdateCount}`
+			if (extraInfo) {
+				message += `, ${extraInfo}`
+			}
+			this._logger.debug(message)
+		} else {
+			this._logger.debug(`'${this._name}' handler received ${sourceOrUpdateCount} ${collectionName}`)
+		}
+	}
+
+	protected logNotifyingUpdate(updateCount: number | undefined): void {
+		this._logger.debug(`${this._name} notifying update with ${updateCount} ${this._collectionName}`)
 	}
 }
 
