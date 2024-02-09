@@ -112,6 +112,13 @@ export async function handleGeneratePlaylistSnapshot(
 			rundownId: { $in: rundownIds },
 		})
 
+		const timeline =
+			playlist.activationId && props.withTimeline
+				? await context.directCollections.Timelines.findOne({
+						_id: playlist.studioId,
+				  })
+				: undefined
+
 		logger.info(`Snapshot generation done`)
 		return literal<CoreRundownPlaylistSnapshot>({
 			version: getSystemVersion(),
@@ -132,6 +139,7 @@ export async function handleGeneratePlaylistSnapshot(
 			expectedMediaItems,
 			expectedPlayoutItems,
 			expectedPackages,
+			timeline,
 		})
 	})
 
