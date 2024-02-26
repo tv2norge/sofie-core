@@ -82,6 +82,7 @@ export class BucketsTopic
 					actionType: [],
 					tags: adLib.tags,
 					externalId: adLib.externalId,
+					publicData: adLib.publicData,
 				})
 			})
 			const bucketAdLibActions = (this._adLibActionsByBucket?.[bucketId] ?? []).map((action) => {
@@ -108,6 +109,7 @@ export class BucketsTopic
 					tags: action.display.tags,
 					userData: action.userData,
 					externalId: action.externalId,
+					publicData: action.publicData,
 				})
 			})
 			return {
