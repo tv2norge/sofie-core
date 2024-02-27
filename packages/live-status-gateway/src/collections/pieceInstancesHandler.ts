@@ -10,15 +10,17 @@ import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isSha
 import throttleToNextTick from '@sofie-automation/shared-lib/dist/lib/throttleToNextTick'
 import _ = require('underscore')
 
+export type PieceInstanceMin = Omit<PieceInstance, 'reportedStartedPlayback' | 'reportedStoppedPlayback'>
+
 export interface SelectedPieceInstances {
 	// Pieces reported by the Playout Gateway as active
-	active: PieceInstance[]
+	active: PieceInstanceMin[]
 
 	// Pieces present in the current part instance
-	currentPartInstance: PieceInstance[]
+	currentPartInstance: PieceInstanceMin[]
 
 	// Pieces present in the current part instance
-	nextPartInstance: PieceInstance[]
+	nextPartInstance: PieceInstanceMin[]
 }
 
 export class PieceInstancesHandler
@@ -73,7 +75,16 @@ export class PieceInstancesHandler
 			this._collectionData.active = active
 			hasAnythingChanged = true
 		}
-		if (!areElementsShallowEqual(this._collectionData.currentPartInstance, inCurrentPartInstance)) {
+		if (
+			!areElementsShallowEqual(this._collectionData.currentPartInstance, inCurrentPartInstance) &&
+			(this._collectionData.currentPartInstance.length !== inCurrentPartInstance.length ||
+				this._collectionData.currentPartInstance.some((pieceInstance, index) => {
+					return !arePropertiesShallowEqual<PieceInstance>(inCurrentPartInstance[index], pieceInstance, [
+						'reportedStartedPlayback',
+						'reportedStoppedPlayback',
+					])
+				}))
+		) {
 			this._collectionData.currentPartInstance = inCurrentPartInstance
 			hasAnythingChanged = true
 		}
@@ -125,7 +136,6 @@ export class PieceInstancesHandler
 				this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, {
 					partInstanceId: { $in: this._partInstanceIds },
 					playlistActivationId: this._activationId,
-					reportedStoppedPlayback: { $exists: false },
 				})
 				this._subscriptionPending = false
 				this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
@@ -139,18 +149,26 @@ export class PieceInstancesHandler
 					void this.changed(id, 'removed').catch(this._logger.error)
 				}
 
-				const hasAnythingChanged = this.updateCollectionData()
-				if (hasAnythingChanged) {
-					await this.notify(this._collectionData)
-				}
+				await this.updateAndNotify()
 			} else if (this._subscriptionId) {
-				// nothing relevant has changed
+				await this.updateAndNotify()
 			} else {
-				this.clearCollectionData()
-				await this.notify(this._collectionData)
+				await this.clearAndNotify()
 			}
 		} else {
 			this.clearCollectionData()
+			await this.notify(this._collectionData)
+		}
+	}
+
+	private async clearAndNotify() {
+		this.clearCollectionData()
+		await this.notify(this._collectionData)
+	}
+
+	private async updateAndNotify() {
+		const hasAnythingChanged = this.updateCollectionData()
+		if (hasAnythingChanged) {
 			await this.notify(this._collectionData)
 		}
 	}
@@ -165,4 +183,27 @@ export class PieceInstancesHandler
 				pieceInstance.infinite?.fromPreviousPart) // infinites from previous part also are on air from the start of the current part
 		)
 	}
+}
+
+export function arePropertiesShallowEqual<T extends Record<string, any>>(
+	a: T,
+	b: T,
+	omitProperties: Array<keyof T>
+): boolean {
+	if (typeof a !== 'object' || a == null || typeof b !== 'object' || b == null) {
+		return false
+	}
+
+	const keysA = Object.keys(a).filter((key) => !omitProperties.includes(key))
+	const keysB = Object.keys(b).filter((key) => !omitProperties.includes(key))
+
+	if (keysA.length !== keysB.length) return false
+
+	for (const key of keysA) {
+		if (!keysB.includes(key) || a[key] !== b[key]) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -2,41 +2,30 @@ import { Logger } from 'winston'
 import { WebSocket } from 'ws'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { DBShowStyleBase, OutputLayers, SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
-import { IOutputLayer, ISourceLayer } from '@sofie-automation/blueprints-integration'
 import { literal } from '@sofie-automation/shared-lib/dist/lib/lib'
 import { WebSocketTopicBase, WebSocketTopic, CollectionObserver } from '../wsHandler'
 import { SelectedPartInstances, PartInstancesHandler } from '../collections/partInstancesHandler'
-import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { PlaylistHandler } from '../collections/playlistHandler'
-import { ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
+import { ShowStyleBaseExt, ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
 import { CurrentSegmentTiming, calculateCurrentSegmentTiming } from './helpers/segmentTiming'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PartsHandler } from '../collections/partsHandler'
 import _ = require('underscore')
 import { PartTiming, calculateCurrentPartTiming } from './helpers/partTiming'
-import { SelectedPieceInstances } from '../collections/pieceInstancesHandler'
-import { PieceInstancesHandler } from '../collections/pieceInstancesHandler'
-import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { CurrentSegmentPart, getCurrentSegmentParts } from './helpers/segmentParts'
+import { SelectedPieceInstances, PieceInstancesHandler, PieceInstanceMin } from '../collections/pieceInstancesHandler'
+import { PieceStatus, toPieceStatus } from './helpers/pieceStatus'
 
 const THROTTLE_PERIOD_MS = 100
-
-interface PieceStatus {
-	id: string
-	name: string
-	sourceLayer: string
-	outputLayer: string
-	tags?: string[]
-}
 
 interface PartStatus {
 	id: string
 	segmentId: string
 	name: string
-	autoNext?: boolean
+	autoNext: boolean | undefined
 	pieces: PieceStatus[]
+	publicData: unknown
 }
 
 interface CurrentPartStatus extends PartStatus {
@@ -57,7 +46,7 @@ export interface ActivePlaylistStatus {
 	currentPart: CurrentPartStatus | null
 	currentSegment: CurrentSegmentStatus | null
 	nextPart: PartStatus | null
-	activePieces: PieceStatus[]
+	publicData: unknown
 }
 
 export class ActivePlaylistTopic
@@ -65,20 +54,21 @@ export class ActivePlaylistTopic
 	implements
 		WebSocketTopic,
 		CollectionObserver<DBRundownPlaylist>,
+		CollectionObserver<ShowStyleBaseExt>,
 		CollectionObserver<SelectedPartInstances>,
 		CollectionObserver<DBPart[]>,
 		CollectionObserver<SelectedPieceInstances>
 {
 	public observerName = ActivePlaylistTopic.name
-	private _sourceLayersMap: Map<string, string> = new Map()
-	private _outputLayersMap: Map<string, string> = new Map()
 	private _activePlaylist: DBRundownPlaylist | undefined
 	private _currentPartInstance: DBPartInstance | undefined
 	private _nextPartInstance: DBPartInstance | undefined
 	private _firstInstanceInSegmentPlayout: DBPartInstance | undefined
 	private _partInstancesInCurrentSegment: DBPartInstance[] = []
 	private _partsBySegmentId: Record<string, DBPart[]> = {}
-	private _pieceInstances: SelectedPieceInstances | undefined
+	private _pieceInstancesInCurrentPartInstance: PieceInstanceMin[] | undefined
+	private _pieceInstancesInNextPartInstance: PieceInstanceMin[] | undefined
+	private _showStyleBaseExt: ShowStyleBaseExt | undefined
 	private throttledSendStatusToAll: () => void
 
 	constructor(logger: Logger) {
@@ -95,14 +85,7 @@ export class ActivePlaylistTopic
 	}
 
 	sendStatus(subscribers: Iterable<WebSocket>): void {
-		if (
-			this._currentPartInstance?._id !== this._activePlaylist?.currentPartInfo?.partInstanceId ||
-			this._nextPartInstance?._id !== this._activePlaylist?.nextPartInfo?.partInstanceId ||
-			(this._pieceInstances?.currentPartInstance[0] &&
-				this._pieceInstances.currentPartInstance[0].partInstanceId !== this._currentPartInstance?._id) ||
-			(this._pieceInstances?.nextPartInstance[0] &&
-				this._pieceInstances.nextPartInstance[0].partInstanceId !== this._nextPartInstance?._id)
-		) {
+		if (this.isDataInconsistent()) {
 			// data is inconsistent, let's wait
 			return
 		}
@@ -130,9 +113,10 @@ export class ActivePlaylistTopic
 										this._partInstancesInCurrentSegment
 									),
 									pieces:
-										this._pieceInstances?.currentPartInstance.map((piece) =>
-											this.toPieceStatus(piece)
+										this._pieceInstancesInCurrentPartInstance?.map((piece) =>
+											toPieceStatus(piece, this._showStyleBaseExt)
 										) ?? [],
+									publicData: currentPart.publicData,
 							  })
 							: null,
 					currentSegment:
@@ -158,11 +142,13 @@ export class ActivePlaylistTopic
 								autoNext: nextPart.autoNext,
 								segmentId: unprotectString(nextPart.segmentId),
 								pieces:
-									this._pieceInstances?.nextPartInstance.map((piece) => this.toPieceStatus(piece)) ??
-									[],
+									this._pieceInstancesInNextPartInstance?.map((piece) =>
+										toPieceStatus(piece, this._showStyleBaseExt)
+									) ?? [],
+								publicData: nextPart.publicData,
 						  })
 						: null,
-					activePieces: this._pieceInstances?.active.map((piece) => this.toPieceStatus(piece)) ?? [],
+					publicData: this._activePlaylist.publicData,
 			  })
 			: literal<ActivePlaylistStatus>({
 					event: 'activePlaylist',
@@ -172,7 +158,7 @@ export class ActivePlaylistTopic
 					currentPart: null,
 					currentSegment: null,
 					nextPart: null,
-					activePieces: [],
+					publicData: undefined,
 			  })
 
 		for (const subscriber of subscribers) {
@@ -180,16 +166,28 @@ export class ActivePlaylistTopic
 		}
 	}
 
+	private isDataInconsistent() {
+		return (
+			this._currentPartInstance?._id !== this._activePlaylist?.currentPartInfo?.partInstanceId ||
+			this._nextPartInstance?._id !== this._activePlaylist?.nextPartInfo?.partInstanceId ||
+			(this._pieceInstancesInCurrentPartInstance?.[0] &&
+				this._pieceInstancesInCurrentPartInstance?.[0].partInstanceId !== this._currentPartInstance?._id) ||
+			(this._pieceInstancesInNextPartInstance?.[0] &&
+				this._pieceInstancesInNextPartInstance?.[0].partInstanceId !== this._nextPartInstance?._id)
+		)
+	}
+
 	async update(
 		source: string,
 		data:
 			| DBRundownPlaylist
-			| DBShowStyleBase
+			| ShowStyleBaseExt
 			| SelectedPartInstances
 			| DBPart[]
 			| SelectedPieceInstances
 			| undefined
 	): Promise<void> {
+		let hasAnythingChanged = false
 		switch (source) {
 			case PlaylistHandler.name: {
 				const rundownPlaylist = data ? (data as DBRundownPlaylist) : undefined
@@ -199,41 +197,14 @@ export class ActivePlaylistTopic
 					`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
 				)
 				this._activePlaylist = unprotectString(rundownPlaylist?.activationId) ? rundownPlaylist : undefined
+				hasAnythingChanged = true
 				break
 			}
 			case ShowStyleBaseHandler.name: {
-				const sourceLayers: SourceLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).sourceLayersWithOverrides).obj
-					: {}
-				const outputLayers: OutputLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
-					: {}
-				this.logUpdateReceived(
-					'showStyleBase',
-					source,
-					`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this.logUpdateReceived(
-					'showStyleBase',
-					source,
-					`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this._sourceLayersMap.clear()
-				this._outputLayersMap.clear()
-				for (const [layerId, sourceLayer] of Object.entries<ISourceLayer | undefined>(sourceLayers)) {
-					if (sourceLayer === undefined || sourceLayer === null) continue
-					this._sourceLayersMap.set(layerId, sourceLayer.name)
-				}
-				for (const [layerId, outputLayer] of Object.entries<IOutputLayer | undefined>(outputLayers)) {
-					if (outputLayer === undefined || outputLayer === null) continue
-					this._outputLayersMap.set(layerId, outputLayer.name)
-				}
+				const showStyleBaseExt = data ? (data as ShowStyleBaseExt) : undefined
+				this._logger.info(`${this._name} received showStyleBase update from ${source}`)
+				this._showStyleBaseExt = showStyleBaseExt
+				hasAnythingChanged = true
 				break
 			}
 			case PartInstancesHandler.name: {
@@ -247,39 +218,38 @@ export class ActivePlaylistTopic
 				this._nextPartInstance = partInstances.next
 				this._firstInstanceInSegmentPlayout = partInstances.firstInSegmentPlayout
 				this._partInstancesInCurrentSegment = partInstances.inCurrentSegment
+				hasAnythingChanged = true
 				break
 			}
 			case PartsHandler.name: {
 				this._partsBySegmentId = _.groupBy(data as DBPart[], 'segmentId')
 				this.logUpdateReceived('parts', source)
+				hasAnythingChanged = true // TODO: can this be smarter?
 				break
 			}
 			case PieceInstancesHandler.name: {
 				const pieceInstances = data as SelectedPieceInstances
 				this.logUpdateReceived('pieceInstances', source)
-				this._pieceInstances = pieceInstances
+				if (
+					pieceInstances.currentPartInstance !== this._pieceInstancesInCurrentPartInstance ||
+					pieceInstances.nextPartInstance !== this._pieceInstancesInNextPartInstance
+				) {
+					hasAnythingChanged = true
+				}
+				this._pieceInstancesInCurrentPartInstance = pieceInstances.currentPartInstance
+				this._pieceInstancesInNextPartInstance = pieceInstances.nextPartInstance
 				break
 			}
 			default:
 				throw new Error(`${this._name} received unsupported update from ${source}}`)
 		}
 
-		this.throttledSendStatusToAll()
+		if (hasAnythingChanged) {
+			this.throttledSendStatusToAll()
+		}
 	}
 
 	private sendStatusToAll() {
 		this.sendStatus(this._subscribers)
-	}
-
-	private toPieceStatus(pieceInstance: PieceInstance): PieceStatus {
-		const sourceLayerName = this._sourceLayersMap.get(pieceInstance.piece.sourceLayerId)
-		const outputLayerName = this._outputLayersMap.get(pieceInstance.piece.outputLayerId)
-		return {
-			id: unprotectString(pieceInstance._id),
-			name: pieceInstance.piece.name,
-			sourceLayer: sourceLayerName ?? 'invalid',
-			outputLayer: outputLayerName ?? 'invalid',
-			tags: pieceInstance.piece.tags,
-		}
 	}
 }

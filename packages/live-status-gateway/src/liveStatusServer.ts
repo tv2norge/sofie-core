@@ -26,6 +26,7 @@ import { BucketsTopic } from './topics/bucketsTopic'
 import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler'
 import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler'
 import { BucketsHandler } from './collections/bucketsHandler'
+import { ActivePiecesTopic } from './topics/activePiecesTopic'
 
 export class LiveStatusServer {
 	_logger: Logger
@@ -43,6 +44,7 @@ export class LiveStatusServer {
 		const rootChannel = new RootChannel(this._logger)
 
 		const studioTopic = new StudioTopic(this._logger)
+		const activePiecesTopic = new ActivePiecesTopic(this._logger)
 		const activePlaylistTopic = new ActivePlaylistTopic(this._logger)
 		const segmentsTopic = new SegmentsTopic(this._logger)
 		const adLibsTopic = new AdLibsTopic(this._logger)
@@ -50,6 +52,7 @@ export class LiveStatusServer {
 
 		rootChannel.addTopic(StatusChannels.studio, studioTopic)
 		rootChannel.addTopic(StatusChannels.activePlaylist, activePlaylistTopic)
+		rootChannel.addTopic(StatusChannels.activePieces, activePiecesTopic)
 		rootChannel.addTopic(StatusChannels.segments, segmentsTopic)
 		rootChannel.addTopic(StatusChannels.adLibs, adLibsTopic)
 		rootChannel.addTopic(StatusChannels.buckets, bucketsTopic)
@@ -115,6 +118,10 @@ export class LiveStatusServer {
 		await partInstancesHandler.subscribe(activePlaylistTopic)
 		await partsHandler.subscribe(activePlaylistTopic)
 		await pieceInstancesHandler.subscribe(activePlaylistTopic)
+
+		await playlistHandler.subscribe(activePiecesTopic)
+		await showStyleBaseHandler.subscribe(activePiecesTopic)
+		await pieceInstancesHandler.subscribe(activePiecesTopic)
 
 		await playlistHandler.subscribe(segmentsTopic)
 		await segmentsHandler.subscribe(segmentsTopic)
