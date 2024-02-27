@@ -55,6 +55,9 @@ export enum UserErrorMessage {
 	NoMigrationsToApply = 40,
 	ValidationFailed = 41,
 	BucketNotFound = 42,
+	IdempotencyKeyMissing = 43,
+	IdempotencyKeyAlreadyUsed = 44,
+	RateLimitExceeded = 45,
 }
 
 const UserErrorMessagesTranslations: { [key in UserErrorMessage]: string } = {
@@ -109,6 +112,9 @@ const UserErrorMessagesTranslations: { [key in UserErrorMessage]: string } = {
 	[UserErrorMessage.NoMigrationsToApply]: t(`No migrations to apply`),
 	[UserErrorMessage.ValidationFailed]: t('Validation failed!'),
 	[UserErrorMessage.BucketNotFound]: t(`Bucket not found!`),
+	[UserErrorMessage.IdempotencyKeyMissing]: t(`Idempotency-Key is missing`),
+	[UserErrorMessage.IdempotencyKeyAlreadyUsed]: t(`Idempotency-Key is already used`),
+	[UserErrorMessage.RateLimitExceeded]: t(`Rate limit exceeded`),
 }
 
 export class UserError {

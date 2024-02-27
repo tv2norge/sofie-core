@@ -17,8 +17,6 @@ import { StudioContentWriteAccess } from '../studio'
 import { OrganizationId, UserId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { Organizations, Users } from '../../collections'
 import { SupressLogMessages } from '../../../__mocks__/suppressLogging'
-import { generateToken } from '../../api/singleUseTokens'
-import { hashSingleUseToken } from '../../../lib/api/userActions'
 
 describe('Security', () => {
 	function getContext(cred: Credentials): MethodContext {
@@ -193,8 +191,7 @@ describe('Security', () => {
 		})
 	})
 	testInFiber('Organization', async () => {
-		const token = generateToken()
-		const snapshotId = await storeSystemSnapshot(superAdmin, hashSingleUseToken(token), env.studio._id, 'for test')
+		const snapshotId = await storeSystemSnapshot(superAdmin, { studioId: env.studio._id }, 'for test')
 
 		await changeEnableUserAccounts(async () => {
 			const selectorId = org0._id

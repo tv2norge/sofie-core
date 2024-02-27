@@ -96,6 +96,7 @@ import { makeMeteorConnectionFromKoa } from '../koa'
 import bodyParser from 'koa-bodyparser'
 import { APIFactory, ServerAPIContext } from './types'
 import { registerRoutes as registerBucketsRoutes } from './buckets'
+import { registerRoutes as registerSnapshotRoutes } from './snapshots'
 
 function restAPIUserEvent(
 	ctx: Koa.ParameterizedContext<
@@ -2073,3 +2074,4 @@ class APIContext implements ServerAPIContext {
 }
 
 registerBucketsRoutes(sofieAPIRequest)
+registerSnapshotRoutes(sofieAPIRequest)

@@ -34,7 +34,12 @@ import { logger } from '../logging'
 import { TimelineComplete } from '@sofie-automation/corelib/dist/dataModel/Timeline'
 import { PeripheralDeviceCommand } from '../../lib/collections/PeripheralDeviceCommands'
 import { registerClassToMeteorMethods } from '../methods'
-import { NewSnapshotAPI, SnapshotAPIMethods } from '../../lib/api/shapshot'
+import {
+	NewSnapshotAPI,
+	PlaylistSnapshotOptions,
+	SnapshotAPIMethods,
+	SystemSnapshotOptions,
+} from '../../lib/api/shapshot'
 import { ICoreSystem, parseVersion } from '../../lib/collections/CoreSystem'
 import { CURRENT_SYSTEM_VERSION } from '../migration/currentSystemVersion'
 import { isVersionSupported } from '../migration/databaseMigration'
@@ -111,6 +116,7 @@ interface RundownPlaylistSnapshot extends CoreRundownPlaylistSnapshot {
 interface SystemSnapshot {
 	version: string
 	versionExtended?: string
+	options: SystemSnapshotOptions
 	studioId: StudioId | null
 	snapshot: SnapshotSystem
 	studios: Array<Studio>
@@ -122,6 +128,8 @@ interface SystemSnapshot {
 	devices: Array<PeripheralDevice>
 	deviceCommands: Array<PeripheralDeviceCommand>
 	coreSystem: ICoreSystem
+	deviceSnaphots?: Array<DeviceSnapshot>
+	timeline?: TimelineComplete[]
 }
 interface DebugSnapshot {
 	version: string
@@ -149,10 +157,11 @@ type AnySnapshot = RundownPlaylistSnapshot | SystemSnapshot | DebugSnapshot
  * @param studioId (Optional) Only generate for a certain studio
  */
 async function createSystemSnapshot(
-	studioId: StudioId | null,
+	options: SystemSnapshotOptions,
 	organizationId: OrganizationId | null
 ): Promise<SystemSnapshot> {
 	const snapshotId: SnapshotId = getRandomId()
+	const studioId = options.studioId ?? null
 	logger.info(`Generating System snapshot "${snapshotId}"` + (studioId ? `for studio "${studioId}"` : ''))
 
 	const coreSystem = await getCoreSystemAsync()
@@ -221,10 +230,13 @@ async function createSystemSnapshot(
 		deviceId: { $in: devices.map((device) => device._id) },
 	})
 
+	const deviceSnaphots = options.withDeviceSnapshots ? await fetchDeviceSnapshots(devices) : undefined
+
 	logger.info(`Snapshot generation done`)
 	return {
 		version: CURRENT_SYSTEM_VERSION,
 		versionExtended: PackageInfo.versionExtended || PackageInfo.version || 'UNKNOWN',
+		options,
 		studioId: studioId,
 		snapshot: {
 			_id: snapshotId,
@@ -243,6 +255,7 @@ async function createSystemSnapshot(
 		devices,
 		coreSystem,
 		deviceCommands: deviceCommands,
+		deviceSnaphots,
 	}
 }
 
@@ -257,7 +270,7 @@ async function createDebugSnapshot(studioId: StudioId, organizationId: Organizat
 	const studio = await Studios.findOneAsync(studioId)
 	if (!studio) throw new Meteor.Error(404, `Studio ${studioId} not found`)
 
-	const systemSnapshot = await createSystemSnapshot(studioId, organizationId)
+	const systemSnapshot = await createSystemSnapshot({ studioId, withDeviceSnapshots: true }, organizationId)
 
 	const activePlaylists = await RundownPlaylists.findFetchAsync({
 		studioId: studio._id,
@@ -265,7 +278,9 @@ async function createDebugSnapshot(studioId: StudioId, organizationId: Organizat
 	})
 
 	const activePlaylistSnapshots = await Promise.all(
-		activePlaylists.map(async (playlist) => createRundownPlaylistSnapshot(playlist, true))
+		activePlaylists.map(async (playlist) =>
+			createRundownPlaylistSnapshot(playlist, { withArchivedDocuments: true })
+		)
 	)
 
 	const timeline = await Timeline.findFetchAsync({})
@@ -274,29 +289,6 @@ async function createDebugSnapshot(studioId: StudioId, organizationId: Organizat
 			$gt: getCurrentTime() - 1000 * 3600 * 3, // latest 3 hours
 		},
 	})
-
-	// Also fetch debugInfo from devices:
-	const deviceSnaphots: Array<DeviceSnapshot> = _.compact(
-		await Promise.all(
-			systemSnapshot.devices.map(async (device) => {
-				if (device.connected && device.subType === PERIPHERAL_SUBTYPE_PROCESS) {
-					const startTime = getCurrentTime()
-
-					// defer to another fiber
-					const deviceSnapshot = await executePeripheralDeviceFunction(device._id, 'getSnapshot')
-
-					logger.info('Got snapshot from device "' + device._id + '"')
-					return {
-						deviceId: device._id,
-						created: startTime,
-						replyTime: getCurrentTime(),
-						content: deviceSnapshot,
-					}
-				}
-				return null
-			})
-		)
-	)
 
 	logger.info(`Snapshot generation done`)
 	return {
@@ -315,8 +307,32 @@ async function createDebugSnapshot(studioId: StudioId, organizationId: Organizat
 		activeRundownPlaylists: activePlaylistSnapshots,
 		timeline: timeline,
 		userActionLog: userActionLogLatest,
-		deviceSnaphots: deviceSnaphots,
+		deviceSnaphots: systemSnapshot.deviceSnaphots ?? [],
 	}
+}
+
+async function fetchDeviceSnapshots(devices: Array<PeripheralDevice>): Promise<DeviceSnapshot[]> {
+	return _.compact(
+		await Promise.all(
+			devices.map(async (device) => {
+				if (device.connected && device.subType === PERIPHERAL_SUBTYPE_PROCESS) {
+					const startTime = getCurrentTime()
+
+					// defer to another fiber
+					const deviceSnapshot = await executePeripheralDeviceFunction(device._id, 'getSnapshot')
+
+					logger.info('Got snapshot from device "' + device._id + '"')
+					return {
+						deviceId: device._id,
+						created: startTime,
+						replyTime: getCurrentTime(),
+						content: deviceSnapshot,
+					}
+				}
+				return null
+			})
+		)
+	)
 }
 
 function getPiecesMediaObjects(pieces: PieceGeneric[]): string[] {
@@ -325,21 +341,22 @@ function getPiecesMediaObjects(pieces: PieceGeneric[]): string[] {
 
 async function createRundownPlaylistSnapshot(
 	playlist: ReadonlyDeep<RundownPlaylist>,
-	full = false
+	options: PlaylistSnapshotOptions
 ): Promise<RundownPlaylistSnapshot> {
 	/** Max count of one type of items to include in the snapshot */
 	const LIMIT_COUNT = 500
 
 	const snapshotId: SnapshotId = getRandomId()
 	logger.info(
-		`Generating ${full ? 'full ' : ''}RundownPlaylist snapshot "${snapshotId}" for RundownPlaylist "${
-			playlist._id
-		}"`
+		`Generating ${
+			options.withArchivedDocuments ? 'full ' : ''
+		}RundownPlaylist snapshot "${snapshotId}" for RundownPlaylist "${playlist._id}"`
 	)
 
 	const queuedJob = await QueueStudioJob(StudioJobs.GeneratePlaylistSnapshot, playlist.studioId, {
 		playlistId: playlist._id,
-		full,
+		full: !!options.withArchivedDocuments,
+		withTimeline: !!options.withTimeline,
 	})
 	const coreResult = await queuedJob.complete
 	const coreSnapshot: CoreRundownPlaylistSnapshot = JSONBlobParse(coreResult.snapshotJson)
@@ -591,54 +608,43 @@ async function restoreFromSystemSnapshot(snapshot: SystemSnapshot): Promise<void
 /** Take and store a system snapshot */
 export async function storeSystemSnapshot(
 	context: MethodContext,
-	hashedToken: string,
-	studioId: StudioId | null,
+	options: SystemSnapshotOptions,
 	reason: string
 ): Promise<SnapshotId> {
-	check(hashedToken, String)
-	if (!_.isNull(studioId)) check(studioId, String)
-	if (!verifyHashedToken(hashedToken)) {
-		throw new Meteor.Error(401, `Restart token is invalid or has expired`)
-	}
+	if (!_.isNull(options.studioId)) check(options.studioId, String)
 
 	const { organizationId, cred } = await OrganizationContentWriteAccess.snapshot(context)
 	if (Settings.enableUserAccounts && isResolvedCredentials(cred)) {
 		if (cred.user && !cred.user.superAdmin) throw new Meteor.Error(401, 'Only Super Admins can store Snapshots')
 	}
-	return internalStoreSystemSnapshot(organizationId, studioId, reason)
+	return internalStoreSystemSnapshot(organizationId, options, reason)
 }
 /** Take and store a system snapshot. For internal use only, performs no access control. */
 export async function internalStoreSystemSnapshot(
 	organizationId: OrganizationId | null,
-	studioId: StudioId | null,
+	options: SystemSnapshotOptions,
 	reason: string
 ): Promise<SnapshotId> {
-	if (!_.isNull(studioId)) check(studioId, String)
+	if (!_.isNull(options.studioId)) check(options.studioId, String)
 
-	const s = await createSystemSnapshot(studioId, organizationId)
+	const s = await createSystemSnapshot(options, organizationId)
 	return storeSnaphot(s, organizationId, reason)
 }
 export async function storeRundownPlaylistSnapshot(
 	access: VerifiedRundownPlaylistContentAccess,
-	hashedToken: string,
-	reason: string,
-	full?: boolean
+	options: PlaylistSnapshotOptions,
+	reason: string
 ): Promise<SnapshotId> {
-	check(hashedToken, String)
-	if (!verifyHashedToken(hashedToken)) {
-		throw new Meteor.Error(401, `Restart token is invalid or has expired`)
-	}
-
-	const s = await createRundownPlaylistSnapshot(access.playlist, full)
+	const s = await createRundownPlaylistSnapshot(access.playlist, options)
 	return storeSnaphot(s, access.organizationId, reason)
 }
 export async function internalStoreRundownPlaylistSnapshot(
 	playlist: RundownPlaylist,
-	reason: string,
-	full?: boolean
+	options: PlaylistSnapshotOptions,
+	reason: string
 ): Promise<SnapshotId> {
-	const s = await createRundownPlaylistSnapshot(playlist, full)
-	return storeSnaphot(s, playlist.organizationId || null, reason)
+	const s = await createRundownPlaylistSnapshot(playlist, options)
+	return storeSnaphot(s, playlist.organizationId ?? null, reason)
 }
 export async function storeDebugSnapshot(
 	context: MethodContext,
@@ -778,12 +784,18 @@ snapshotPrivateApiRouter.get('/:token/retrieve/:snapshotId', async (ctx) => {
 
 class ServerSnapshotAPI extends MethodContextAPI implements NewSnapshotAPI {
 	async storeSystemSnapshot(hashedToken: string, studioId: StudioId | null, reason: string) {
-		return storeSystemSnapshot(this, hashedToken, studioId, reason)
+		if (!verifyHashedToken(hashedToken)) {
+			throw new Meteor.Error(401, `Idempotency token is invalid or has expired`)
+		}
+		return storeSystemSnapshot(this, { studioId: studioId ?? undefined }, reason)
 	}
 	async storeRundownPlaylist(hashedToken: string, playlistId: RundownPlaylistId, reason: string) {
+		if (!verifyHashedToken(hashedToken)) {
+			throw new Meteor.Error(401, `Idempotency token is invalid or has expired`)
+		}
 		check(playlistId, String)
 		const access = await checkAccessToPlaylist(this, playlistId)
-		return storeRundownPlaylistSnapshot(access, hashedToken, reason)
+		return storeRundownPlaylistSnapshot(access, {}, reason)
 	}
 	async storeDebugSnapshot(hashedToken: string, studioId: StudioId, reason: string) {
 		return storeDebugSnapshot(this, hashedToken, studioId, reason)
