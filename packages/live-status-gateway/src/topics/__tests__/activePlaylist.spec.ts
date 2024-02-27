@@ -121,7 +121,7 @@ describe('ActivePlaylistTopic', () => {
 					expectedDurationMs: 10000,
 					projectedEndTime: 1600000070000,
 				},
-				parts: [{ expectedDuration: 10000, id: 'CURRENT_PART_INSTANCE_ID', name: 'Test Part' }],
+				parts: [{ expectedDuration: 10000, id: 'PART_1', name: 'Test Part' }],
 			},
 			rundownIds: unprotectStringArray(playlist.rundownIdsInOrder),
 			publicData: { a: 'b' },
