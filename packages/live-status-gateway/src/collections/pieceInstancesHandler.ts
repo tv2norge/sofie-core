@@ -175,6 +175,7 @@ export class PieceInstancesHandler
 
 	private isPieceInstanceActive(pieceInstance: PieceInstance) {
 		return (
+			pieceInstance.reportedStoppedPlayback == null &&
 			(pieceInstance.partInstanceId === this._currentPlaylist?.previousPartInfo?.partInstanceId || // a piece from previous part instance may be active during transition
 				pieceInstance.partInstanceId === this._currentPlaylist?.currentPartInfo?.partInstanceId) &&
 			(pieceInstance.reportedStartedPlayback != null || // has been reported to have started by the Playout Gateway
