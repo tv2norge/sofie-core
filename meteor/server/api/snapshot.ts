@@ -4,7 +4,7 @@ import * as _ from 'underscore'
 import Koa from 'koa'
 import KoaRouter from '@koa/router'
 import bodyParser from 'koa-bodyparser'
-import { check } from '../../lib/check'
+import { Match, check } from '../../lib/check'
 import { Studio } from '../../lib/collections/Studios'
 import {
 	SnapshotType,
@@ -611,7 +611,7 @@ export async function storeSystemSnapshot(
 	options: SystemSnapshotOptions,
 	reason: string
 ): Promise<SnapshotId> {
-	if (!_.isNull(options.studioId)) check(options.studioId, String)
+	check(options.studioId, Match.Optional(String))
 
 	const { organizationId, cred } = await OrganizationContentWriteAccess.snapshot(context)
 	if (Settings.enableUserAccounts && isResolvedCredentials(cred)) {
@@ -625,7 +625,7 @@ export async function internalStoreSystemSnapshot(
 	options: SystemSnapshotOptions,
 	reason: string
 ): Promise<SnapshotId> {
-	if (!_.isNull(options.studioId)) check(options.studioId, String)
+	check(options.studioId, Match.Optional(String))
 
 	const s = await createSystemSnapshot(options, organizationId)
 	return storeSnaphot(s, organizationId, reason)
