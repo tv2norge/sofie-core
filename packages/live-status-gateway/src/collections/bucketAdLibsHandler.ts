@@ -16,7 +16,7 @@ export class BucketAdLibsHandler extends CollectionBase<BucketAdLib[]> implement
 	}
 
 	async changed(id: string, changeType: string): Promise<void> {
-		this._logger.info(`${this._name} ${changeType} ${id}`)
+		this.logDocumentChange(id, changeType)
 		if (!this._collectionName) return
 		const collection = this._core.getCollection<BucketAdLib>(this._collectionName)
 		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)

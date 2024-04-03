@@ -4,17 +4,19 @@ import { Credentials } from '../../../security/lib/credentials'
 import { UserErrorMessage } from '@sofie-automation/corelib/dist/error'
 import { ClientAPI } from '../../../../lib/api/client'
 
+export type APIHandler<T, Params, Body, Response> = (
+	serverAPI: T,
+	connection: Meteor.Connection,
+	event: string,
+	params: Params,
+	body: Body
+) => Promise<ClientAPI.ClientResponse<Response>>
+
 export type APIRegisterHook<T> = <Params, Body, Response>(
 	method: 'get' | 'post' | 'put' | 'delete',
 	route: string,
 	errMsgs: Map<number, UserErrorMessage[]>,
-	handler: (
-		serverAPI: T,
-		connection: Meteor.Connection,
-		event: string,
-		params: Params,
-		body: Body
-	) => Promise<ClientAPI.ClientResponse<Response>>,
+	handler: APIHandler<T, Params, Body, Response>,
 	serverAPIFactory?: APIFactory<T> // TODO: merge conflict with R51
 ) => void
 

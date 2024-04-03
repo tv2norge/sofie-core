@@ -96,6 +96,7 @@ import { makeMeteorConnectionFromKoa } from '../koa'
 import bodyParser from 'koa-bodyparser'
 import { APIFactory, ServerAPIContext } from './types'
 import { registerRoutes as registerBucketsRoutes } from './buckets'
+import { registerRoutes as registerSnapshotRoutes } from './snapshots'
 
 function restAPIUserEvent(
 	ctx: Koa.ParameterizedContext<
@@ -204,13 +205,13 @@ export class ServerRestAPI implements RestAPI {
 				segmentAdLibPiece,
 				bucketAdLibPiece,
 				AdLibActions.findOneAsync(adLibId as AdLibActionId, {
-					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
+					projection: { _id: 1, actionId: 1, userData: 1 },
 				}),
 				RundownBaselineAdLibActions.findOneAsync(adLibId as RundownBaselineAdLibActionId, {
-					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
+					projection: { _id: 1, actionId: 1, userData: 1 },
 				}),
 				BucketAdLibActions.findOneAsync(adLibId as BucketAdLibActionId, {
-					projection: { _id: 1, actionId: 1, userData: 1, privateData: 1 },
+					projection: { _id: 1, actionId: 1, userData: 1 },
 				}),
 			])
 		const adLibActionDoc = adLibAction ?? baselineAdLibAction ?? bucketAdLibAction
@@ -301,7 +302,6 @@ export class ServerRestAPI implements RestAPI {
 					actionId: adLibActionDoc.actionId,
 					userData: userData ?? adLibActionDoc.userData,
 					triggerMode: triggerMode ?? undefined,
-					privateData: adLibActionDoc.privateData,
 				}
 			)
 		} else {
@@ -2074,3 +2074,4 @@ class APIContext implements ServerAPIContext {
 }
 
 registerBucketsRoutes(sofieAPIRequest)
+registerSnapshotRoutes(sofieAPIRequest)

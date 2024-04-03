@@ -4,7 +4,7 @@ import { CollectionBase, Collection, CollectionObserver } from '../wsHandler'
 import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
-import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
+import { protectString, unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { PartInstancesHandler, SelectedPartInstances } from './partInstancesHandler'
 import { RundownId, RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
@@ -27,7 +27,7 @@ export class RundownHandler
 	}
 
 	async changed(id: string, changeType: string): Promise<void> {
-		this._logger.info(`${this._name} ${changeType} ${id}`)
+		this.logDocumentChange(id, changeType)
 		if (protectString(id) !== this._currentRundownId)
 			throw new Error(`${this._name} received change with unexpected id ${id} !== ${this._currentRundownId}`)
 		if (!this._collectionName) return
@@ -45,11 +45,11 @@ export class RundownHandler
 		const partInstances = data as SelectedPartInstances
 		switch (source) {
 			case PlaylistHandler.name:
-				this._logger.info(`${this._name} received playlist update ${rundownPlaylist?._id}`)
+				this.logUpdateReceived('playlist', source, unprotectString(rundownPlaylist?._id))
 				this._currentPlaylistId = rundownPlaylist?._id
 				break
 			case PartInstancesHandler.name:
-				this._logger.info(`${this._name} received partInstances update from ${source}`)
+				this.logUpdateReceived('partInstances', source)
 				this._currentRundownId = partInstances.current?.rundownId ?? partInstances.next?.rundownId
 				break
 			default:

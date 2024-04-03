@@ -40,7 +40,7 @@ export class StudioHandler extends CollectionBase<DBStudio> implements Collectio
 	}
 
 	async changed(id: string, changeType: string): Promise<void> {
-		this._logger.info(`${this._name} ${changeType} ${id}`)
+		this.logDocumentChange(id, changeType)
 		if (!(id === unprotectString(this._studioId) && this._collectionName)) return
 		const collection = this._core.getCollection<DBStudio>(this._collectionName)
 		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)

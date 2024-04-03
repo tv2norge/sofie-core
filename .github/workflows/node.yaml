@@ -20,12 +20,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - uses: ./.github/actions/setup-meteor
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -55,12 +55,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - uses: ./.github/actions/setup-meteor
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -82,7 +82,9 @@ jobs:
           CI: true
       - name: Send coverage
         if: ((github.event_name == 'pull_request') && (!startsWith(github.head_ref, 'release'))) || ((github.event_name == 'push') && (!startsWith(github.ref_name, 'release')))
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build-core:
     name: Build Core and publish docker image
@@ -133,13 +135,13 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       - name: Use Node.js
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - uses: ./.github/actions/setup-meteor
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
         with:
           path: |
@@ -192,7 +194,7 @@ jobs:
           echo "image=$image" >> $GITHUB_OUTPUT
       - name: Trivy scanning
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1' && steps.ecr-tag.outputs.tags != 0
-        uses: aquasecurity/trivy-action@0.12.0
+        uses: aquasecurity/trivy-action@0.17.0
         with:
           image-ref: "${{ steps.trivy-image.outputs.image }}"
           format: "table"
@@ -273,13 +275,13 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
         with:
           node-version-file: ".node-version"
       - name: restore node_modules
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             packages/node_modules
@@ -291,7 +293,7 @@ jobs:
           yarn install
           yarn lerna run --scope \*\*/${{ matrix.gateway-name }} --include-dependencies --stream build
           yarn run pinst --disable
-          yarn workspaces focus --all --production
+          yarn workspaces focus ${{ matrix.gateway-name }} --production
       - name: Set up Docker Buildx
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
         uses: docker/setup-buildx-action@v3
@@ -313,7 +315,7 @@ jobs:
           echo "image=$image" >> $GITHUB_OUTPUT
       - name: Trivy scanning
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1' && steps.ghcr-tag.outputs.tags != 0
-        uses: aquasecurity/trivy-action@0.12.0
+        uses: aquasecurity/trivy-action@0.17.0
         with:
           image-ref: "${{ steps.trivy-image.outputs.image }}"
           format: "table"
@@ -355,11 +357,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             packages/node_modules
@@ -406,23 +408,23 @@ jobs:
           - node-version: 18.x
             package-name: openapi
           # No tests for the gateways yet
-          # - node-version: 16.x
+          # - node-version: 18.x
           #   package-name: playout-gateway
-          # - node-version: 16.x
+          # - node-version: 18.x
           #   package-name: mos-gateway
-          # - node-version: 16.x
-          #   package-name: live-status-gateway
+          - node-version: 18.x
+            package-name: live-status-gateway
 
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             packages/node_modules
@@ -443,7 +445,9 @@ jobs:
           CI: true
       - name: Send coverage
         if: (matrix.node-version == '16.x' || matrix.send-coverage == true) && ((github.event_name == 'pull_request') && ((!startsWith(github.head_ref, 'release'))) || ((github.event_name == 'push') && (!startsWith(github.ref_name, 'release'))))
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   publish-docs:
     name: Publish Docs
@@ -456,11 +460,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             packages/node_modules
@@ -513,7 +517,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - name: Prepare Environment # have to run this first to make sure the semver lib is available
@@ -586,12 +590,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
       - uses: ./.github/actions/setup-meteor
       - name: restore node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             node_modules

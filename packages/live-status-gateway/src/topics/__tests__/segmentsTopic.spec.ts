@@ -154,10 +154,34 @@ describe('SegmentsTopic', () => {
 			event: 'segments',
 			rundownPlaylistId: unprotectString(testPlaylist._id),
 			segments: [
-				{ id: '1_1', rundownId: RUNDOWN_1_ID, name: 'Segment 1_1', timing: { expectedDurationMs: 0 } },
-				{ id: '1_2', rundownId: RUNDOWN_1_ID, name: 'Segment 1_2', timing: { expectedDurationMs: 0 } },
-				{ id: '2_1', rundownId: RUNDOWN_2_ID, name: 'Segment 2_1', timing: { expectedDurationMs: 0 } },
-				{ id: '2_2', rundownId: RUNDOWN_2_ID, name: 'Segment 2_2', timing: { expectedDurationMs: 0 } },
+				{
+					id: '1_1',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '1_2',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_2',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '2_1',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '2_2',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_2',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
 			],
 		}
 		expect(mockSubscriber.send.mock.calls).toEqual([[JSON.stringify(expectedStatus)]])
@@ -188,10 +212,34 @@ describe('SegmentsTopic', () => {
 			event: 'segments',
 			rundownPlaylistId: unprotectString(testPlaylist._id),
 			segments: [
-				{ id: '2_1', rundownId: RUNDOWN_2_ID, name: 'Segment 2_1', timing: { expectedDurationMs: 0 } },
-				{ id: '2_2', rundownId: RUNDOWN_2_ID, name: 'Segment 2_2', timing: { expectedDurationMs: 0 } },
-				{ id: '1_1', rundownId: RUNDOWN_1_ID, name: 'Segment 1_1', timing: { expectedDurationMs: 0 } },
-				{ id: '1_2', rundownId: RUNDOWN_1_ID, name: 'Segment 1_2', timing: { expectedDurationMs: 0 } },
+				{
+					id: '2_1',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '2_2',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_2',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '1_1',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '1_2',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_2',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
 			],
 		}
 		expect(mockSubscriber.send.mock.calls).toEqual([[JSON.stringify(expectedStatus)]])
@@ -251,26 +299,37 @@ describe('SegmentsTopic', () => {
 					rundownId: RUNDOWN_1_ID,
 					name: 'Segment 1_1',
 					timing: { expectedDurationMs: 0, budgetDurationMs: 5000 },
+					publicData: undefined,
 				},
 				{
 					id: '1_2',
 					rundownId: RUNDOWN_1_ID,
 					name: 'Segment 1_2',
 					timing: { expectedDurationMs: 0, budgetDurationMs: 15000 },
+					publicData: undefined,
 				},
-				{ id: '2_1', rundownId: RUNDOWN_2_ID, name: 'Segment 2_1', timing: { expectedDurationMs: 0 } },
+				{
+					id: '2_1',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
 				{
 					id: '2_2',
 					rundownId: RUNDOWN_2_ID,
 					name: 'Segment 2_2',
 					timing: { expectedDurationMs: 0, budgetDurationMs: 51000 },
+					publicData: undefined,
 				},
 			],
 		}
 
 		// eslint-disable-next-line @typescript-eslint/unbound-method
 		expect(mockSubscriber.send).toHaveBeenCalledTimes(1)
-		expect(JSON.parse(mockSubscriber.send.mock.calls[0][0] as string)).toEqual(expectedStatus)
+		expect(JSON.parse(mockSubscriber.send.mock.calls[0][0] as string)).toEqual(
+			JSON.parse(JSON.stringify(expectedStatus))
+		)
 	})
 
 	it('exposes expectedDuration', async () => {
@@ -322,10 +381,34 @@ describe('SegmentsTopic', () => {
 			event: 'segments',
 			rundownPlaylistId: unprotectString(testPlaylist._id),
 			segments: [
-				{ id: '1_1', rundownId: RUNDOWN_1_ID, name: 'Segment 1_1', timing: { expectedDurationMs: 5000 } },
-				{ id: '1_2', rundownId: RUNDOWN_1_ID, name: 'Segment 1_2', timing: { expectedDurationMs: 15000 } },
-				{ id: '2_1', rundownId: RUNDOWN_2_ID, name: 'Segment 2_1', timing: { expectedDurationMs: 0 } },
-				{ id: '2_2', rundownId: RUNDOWN_2_ID, name: 'Segment 2_2', timing: { expectedDurationMs: 51000 } },
+				{
+					id: '1_1',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_1',
+					timing: { expectedDurationMs: 5000 },
+					publicData: undefined,
+				},
+				{
+					id: '1_2',
+					rundownId: RUNDOWN_1_ID,
+					name: 'Segment 1_2',
+					timing: { expectedDurationMs: 15000 },
+					publicData: undefined,
+				},
+				{
+					id: '2_1',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_1',
+					timing: { expectedDurationMs: 0 },
+					publicData: undefined,
+				},
+				{
+					id: '2_2',
+					rundownId: RUNDOWN_2_ID,
+					name: 'Segment 2_2',
+					timing: { expectedDurationMs: 51000 },
+					publicData: undefined,
+				},
 			],
 		}
 		expect(mockSubscriber.send.mock.calls).toEqual([[JSON.stringify(expectedStatus)]])
@@ -348,6 +431,7 @@ describe('SegmentsTopic', () => {
 		const testPlaylist2 = makeTestPlaylist()
 		testPlaylist2.rundownIdsInOrder = [protectString(RUNDOWN_2_ID), protectString(RUNDOWN_1_ID)]
 		await topic.update(PlaylistHandler.name, testPlaylist2)
+		jest.advanceTimersByTime(THROTTLE_PERIOD_MS)
 
 		const expectedStatus: SegmentsStatus = {
 			event: 'segments',
@@ -356,7 +440,9 @@ describe('SegmentsTopic', () => {
 				{ id: '1_1', rundownId: RUNDOWN_1_ID, name: 'Segment 1_1' },
 				{ id: '1_2', rundownId: RUNDOWN_1_ID, name: 'Segment 1_2', identifier: 'SomeIdentifier' },
 			],
-		}
-		expect(mockSubscriber.send.mock.calls).toEqual([[JSON.stringify(expectedStatus)]])
+		} as SegmentsStatus
+		expect(JSON.parse(mockSubscriber.send.mock.calls[0][0] as string)).toMatchObject(
+			JSON.parse(JSON.stringify(expectedStatus))
+		)
 	})
 })

@@ -35,6 +35,8 @@ import { Blueprints, ShowStyleBases, Studios } from '../../../collections'
 import { DEFAULT_MINIMUM_TAKE_SPAN } from '@sofie-automation/shared-lib/dist/core/constants'
 import { Bucket } from '../../../../lib/collections/Buckets'
 import { APIBucket, APIBucketComplete } from '../../../../lib/api/rest/v1/buckets'
+import { PlaylistSnapshotOptions, SystemSnapshotOptions } from '../../../../lib/api/shapshot'
+import { APIPlaylistSnapshotOptions, APISystemSnapshotOptions } from '../../../../lib/api/rest/v1/snapshots'
 
 /*
 This file contains functions that convert between the internal Sofie-Core types and types exposed to the external API.
@@ -429,5 +431,20 @@ export function APIBucketFrom(bucket: Bucket): APIBucketComplete {
 		id: unprotectString(bucket._id),
 		name: bucket.name,
 		studioId: unprotectString(bucket.studioId),
+	}
+}
+
+export function systemSnapshotOptionsFrom(options: APISystemSnapshotOptions): SystemSnapshotOptions {
+	return {
+		withDeviceSnapshots: !!options.withDeviceSnapshots,
+		studioId: typeof options.studioId === 'string' ? protectString(options.studioId) : undefined,
+	}
+}
+
+export function playlistSnapshotOptionsFrom(options: APIPlaylistSnapshotOptions): PlaylistSnapshotOptions {
+	return {
+		withDeviceSnapshots: !!options.withDeviceSnapshots,
+		withArchivedDocuments: !!options.withArchivedDocuments,
+		withTimeline: !!options.withTimeline,
 	}
 }

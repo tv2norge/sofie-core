@@ -12,14 +12,8 @@ import { AdLibActionsHandler } from '../collections/adLibActionsHandler'
 import { GlobalAdLibActionsHandler } from '../collections/globalAdLibActionsHandler'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
 import { RundownBaselineAdLibItem } from '@sofie-automation/corelib/dist/dataModel/RundownBaselineAdLibPiece'
-import {
-	IBlueprintActionManifestDisplayContent,
-	IOutputLayer,
-	ISourceLayer,
-} from '@sofie-automation/blueprints-integration'
-import { ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
-import { DBShowStyleBase, OutputLayers, SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
-import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
+import { IBlueprintActionManifestDisplayContent } from '@sofie-automation/blueprints-integration'
+import { ShowStyleBaseExt, ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
 import { interpollateTranslation } from '@sofie-automation/corelib/dist/TranslatableMessage'
 import { AdLibsHandler } from '../collections/adLibsHandler'
 import { GlobalAdLibsHandler } from '../collections/globalAdLibsHandler'
@@ -46,6 +40,7 @@ export interface AdLibStatus {
 	actionType: AdLibActionType[]
 	tags?: string[]
 	userData?: Record<string, unknown>
+	publicData?: unknown
 }
 
 export class AdLibsTopic
@@ -53,13 +48,14 @@ export class AdLibsTopic
 	implements
 		WebSocketTopic,
 		CollectionObserver<DBRundownPlaylist>,
+		CollectionObserver<ShowStyleBaseExt>,
 		CollectionObserver<AdLibAction[]>,
 		CollectionObserver<RundownBaselineAdLibAction[]>
 {
 	public observerName = AdLibsTopic.name
 	private _activePlaylist: DBRundownPlaylist | undefined
-	private _sourceLayersMap: Map<string, string> = new Map()
-	private _outputLayersMap: Map<string, string> = new Map()
+	private _sourceLayersMap: ReadonlyMap<string, string> = new Map()
+	private _outputLayersMap: ReadonlyMap<string, string> = new Map()
 	private _adLibActions: AdLibAction[] | undefined
 	private _abLibs: AdLibPiece[] | undefined
 	private _globalAdLibActions: RundownBaselineAdLibAction[] | undefined
@@ -108,6 +104,7 @@ export class AdLibsTopic
 						actionType: triggerModes,
 						tags: action.display.tags,
 						userData: action.userData,
+						publicData: action.publicData,
 					})
 				})
 			)
@@ -125,6 +122,7 @@ export class AdLibsTopic
 						outputLayer: outputLayerName ?? 'invalid',
 						actionType: [],
 						tags: adLib.tags,
+						publicData: adLib.publicData,
 					})
 				})
 			)
@@ -155,6 +153,7 @@ export class AdLibsTopic
 						actionType: triggerModes,
 						tags: action.display.tags,
 						userData: action.userData,
+						publicData: action.publicData,
 					})
 				})
 			)
@@ -172,6 +171,7 @@ export class AdLibsTopic
 						outputLayer: outputLayerName ?? 'invalid',
 						actionType: [],
 						tags: adLib.tags,
+						publicData: adLib.publicData,
 					})
 				})
 			)
@@ -195,7 +195,7 @@ export class AdLibsTopic
 		source: string,
 		data:
 			| DBRundownPlaylist
-			| DBShowStyleBase
+			| ShowStyleBaseExt
 			| AdLibAction[]
 			| RundownBaselineAdLibAction[]
 			| AdLibPiece[]
@@ -206,67 +206,39 @@ export class AdLibsTopic
 			case PlaylistHandler.name: {
 				const previousPlaylistId = this._activePlaylist?._id
 				this._activePlaylist = data as DBRundownPlaylist | undefined
-				this._logger.info(`${this._name} received playlist update from ${source}`)
+				this.logUpdateReceived('playlist', source)
 				if (previousPlaylistId === this._activePlaylist?._id) return
 				break
 			}
 			case AdLibActionsHandler.name: {
 				const adLibActions = data ? (data as AdLibAction[]) : []
-				this._logger.info(`${this._name} received adLibActions update from ${source}`)
+				this.logUpdateReceived('adLibActions', source)
 				this._adLibActions = adLibActions
 				break
 			}
 			case GlobalAdLibActionsHandler.name: {
 				const globalAdLibActions = data ? (data as RundownBaselineAdLibAction[]) : []
-				this._logger.info(`${this._name} received globalAdLibActions update from ${source}`)
+				this.logUpdateReceived('globalAdLibActions', source)
 				this._globalAdLibActions = globalAdLibActions
 				break
 			}
 			case AdLibsHandler.name: {
 				const adLibs = data ? (data as AdLibPiece[]) : []
-				this._logger.info(`${this._name} received adLibs update from ${source}`)
+				this.logUpdateReceived('adLibs', source)
 				this._abLibs = adLibs
 				break
 			}
 			case GlobalAdLibsHandler.name: {
 				const globalAdLibs = data ? (data as RundownBaselineAdLibItem[]) : []
-				this._logger.info(`${this._name} received globalAdLibs update from ${source}`)
+				this.logUpdateReceived('globalAdLibs', source)
 				this._globalAdLibs = globalAdLibs
 				break
 			}
 			case ShowStyleBaseHandler.name: {
-				const sourceLayers: SourceLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).sourceLayersWithOverrides).obj
-					: {}
-				const outputLayers: OutputLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
-					: {}
-				this._logger.info(
-					`${this._name} received showStyleBase update with sourceLayers [${Object.values<
-						ISourceLayer | undefined
-					>(sourceLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this._logger.info(
-					`${this._name} received showStyleBase update with outputLayers [${Object.values<
-						IOutputLayer | undefined
-					>(outputLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this._sourceLayersMap.clear()
-				this._outputLayersMap.clear()
-				for (const [layerId, sourceLayer] of Object.entries<ISourceLayer | undefined>(sourceLayers)) {
-					if (sourceLayer === undefined || sourceLayer === null) continue
-					this._sourceLayersMap.set(layerId, sourceLayer.name)
-				}
-				for (const [layerId, outputLayer] of Object.entries<IOutputLayer | undefined>(outputLayers)) {
-					if (outputLayer === undefined || outputLayer === null) continue
-					this._outputLayersMap.set(layerId, outputLayer.name)
-				}
+				const showStyleBaseExt = data ? (data as ShowStyleBaseExt) : undefined
+				this._logger.info(`${this._name} received showStyleBase update from ${source}`)
+				this._sourceLayersMap = showStyleBaseExt?.sourceLayerNamesById ?? new Map()
+				this._outputLayersMap = showStyleBaseExt?.outputLayerNamesById ?? new Map()
 				break
 			}
 			default:
