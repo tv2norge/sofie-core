@@ -1,5 +1,13 @@
 import { addMigrationSteps } from './databaseMigration'
-import { PeripheralDevices, RundownPlaylists, Studios } from '../collections'
+import {
+	AdLibActions,
+	AdLibPieces,
+	ExpectedPackages,
+	PeripheralDevices,
+	Pieces,
+	RundownPlaylists,
+	Studios,
+} from '../collections'
 import { assertNever, clone, literal } from '@sofie-automation/corelib/dist/lib'
 import {
 	MappingExt,
@@ -21,6 +29,13 @@ import {
 } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { JSONBlobStringify, JSONSchema, TSR } from '@sofie-automation/blueprints-integration'
 import { DEFAULT_MINIMUM_TAKE_SPAN } from '@sofie-automation/shared-lib/dist/core/constants'
+import { PartId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
+import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
+import { ExpectedPackageDBType } from '@sofie-automation/corelib/dist/dataModel/ExpectedPackages'
+import { AdLibActionId, PieceId, RundownBaselineAdLibActionId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
+import { AdLibAction } from '@sofie-automation/corelib/dist/dataModel/AdlibAction'
 
 /*
  * **************************************************************************************
@@ -144,6 +159,12 @@ const oldDeviceTypeToNewMapping = {
 	[OldDeviceType.TRICASTER]: TSR.DeviceType.TRICASTER,
 	[OldDeviceType.MULTI_OSC]: TSR.DeviceType.MULTI_OSC,
 }
+
+const EXPECTED_PACKAGE_TYPES_ADDED_PART_ID = [
+	ExpectedPackageDBType.PIECE,
+	ExpectedPackageDBType.ADLIB_PIECE,
+	ExpectedPackageDBType.ADLIB_ACTION,
+]
 
 export const addSteps = addMigrationSteps('1.50.0', [
 	{
@@ -347,11 +368,34 @@ export const addSteps = addMigrationSteps('1.50.0', [
 	},
 
 	{
+		// This is excessively verbose, but sometimes the db gets into a bad state with these objects being only partially defined
 		id: `Studio ensure peripheralDeviceSettings field`,
 		canBeRunAutomatically: true,
 		validate: async () => {
 			const objectCount = await Studios.countDocuments({
-				peripheralDeviceSettings: { $exists: false },
+				$or: [
+					{
+						peripheralDeviceSettings: { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.playoutDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.playoutDevices.overrides': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.ingestDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.ingestDevices.overrides': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.inputDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.inputDevices.overrides': { $exists: false },
+					},
+				],
 			})
 
 			if (objectCount) {
@@ -361,18 +405,68 @@ export const addSteps = addMigrationSteps('1.50.0', [
 		},
 		migrate: async () => {
 			const objects = await Studios.findFetchAsync({
-				peripheralDeviceSettings: { $exists: false },
+				$or: [
+					{
+						peripheralDeviceSettings: { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.playoutDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.playoutDevices.overrides': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.ingestDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.ingestDevices.overrides': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.inputDevices.defaults': { $exists: false },
+					},
+					{
+						'peripheralDeviceSettings.inputDevices.overrides': { $exists: false },
+					},
+				],
 			})
 			for (const studio of objects) {
-				await Studios.updateAsync(studio._id, {
-					$set: {
-						peripheralDeviceSettings: {
-							playoutDevices: wrapDefaultObject({}),
-							ingestDevices: wrapDefaultObject({}),
-							inputDevices: wrapDefaultObject({}),
+				if (!studio.peripheralDeviceSettings) {
+					await Studios.updateAsync(studio._id, {
+						$set: {
+							peripheralDeviceSettings: {
+								playoutDevices: wrapDefaultObject({}),
+								ingestDevices: wrapDefaultObject({}),
+								inputDevices: wrapDefaultObject({}),
+							},
 						},
-					},
-				})
+					})
+				} else {
+					const update: any = {}
+					if (!studio.peripheralDeviceSettings.playoutDevices.defaults) {
+						update['peripheralDeviceSettings.playoutDevices.defaults'] = {}
+					}
+					if (!studio.peripheralDeviceSettings.playoutDevices.overrides) {
+						update['peripheralDeviceSettings.playoutDevices.overrides'] = []
+					}
+					if (!studio.peripheralDeviceSettings.ingestDevices.defaults) {
+						update['peripheralDeviceSettings.ingestDevices.defaults'] = {}
+					}
+					if (!studio.peripheralDeviceSettings.ingestDevices.overrides) {
+						update['peripheralDeviceSettings.ingestDevices.overrides'] = []
+					}
+					if (!studio.peripheralDeviceSettings.inputDevices.defaults) {
+						update['peripheralDeviceSettings.inputDevices.defaults'] = {}
+					}
+					if (!studio.peripheralDeviceSettings.inputDevices.overrides) {
+						update['peripheralDeviceSettings.inputDevices.overrides'] = []
+					}
+
+					if (Object.keys(update).length) {
+						await Studios.updateAsync(studio._id, {
+							$set: update,
+						})
+					}
+				}
 			}
 		},
 	},
@@ -753,33 +847,12 @@ export const addSteps = addMigrationSteps('1.50.0', [
 	},
 
 	{
-		// This migration may not be necessary, but ensures the db isn't in a bad state
-		id: `Studio ensure peripheralDeviceSettings field looks correct`,
-		dependOnResultFrom: `Studio ensure peripheralDeviceSettings field`,
+		id: `ExpectedPackageDBFromAdLibAction and ExpectedPackageDBFromPiece add partId`,
 		canBeRunAutomatically: true,
 		validate: async () => {
-			const objectCount = await Studios.countDocuments({
-				peripheralDeviceSettings: { $exists: true },
-				$or: [
-					{
-						'peripheralDeviceSettings.playoutDevices.defaults': { $exists: false },
-					},
-					{
-						'peripheralDeviceSettings.playoutDevices.overrides': { $exists: false },
-					},
-					{
-						'peripheralDeviceSettings.ingestDevices.defaults': { $exists: false },
-					},
-					{
-						'peripheralDeviceSettings.ingestDevices.overrides': { $exists: false },
-					},
-					{
-						'peripheralDeviceSettings.inputDevices.defaults': { $exists: false },
-					},
-					{
-						'peripheralDeviceSettings.inputDevices.overrides': { $exists: false },
-					},
-				],
+			const objectCount = await ExpectedPackages.countDocuments({
+				fromPieceType: { $in: EXPECTED_PACKAGE_TYPES_ADDED_PART_ID as any }, // Force the types, as the query does not match due to the interfaces
+				partId: { $exists: false },
 			})
 
 			if (objectCount) {
@@ -788,35 +861,69 @@ export const addSteps = addMigrationSteps('1.50.0', [
 			return false
 		},
 		migrate: async () => {
-			const objects = await Studios.findFetchAsync({
-				peripheralDeviceSettings: { $exists: true },
+			const objects = await ExpectedPackages.findFetchAsync({
+				fromPieceType: { $in: EXPECTED_PACKAGE_TYPES_ADDED_PART_ID as any }, // Force the types, as the query does not match due to the interfaces
+				partId: { $exists: false },
 			})
-			for (const studio of objects) {
-				const update: any = {}
-				if (!studio.peripheralDeviceSettings.playoutDevices.defaults) {
-					update['peripheralDeviceSettings.playoutDevices.defaults'] = {}
-				}
-				if (!studio.peripheralDeviceSettings.playoutDevices.overrides) {
-					update['peripheralDeviceSettings.playoutDevices.overrides'] = []
-				}
-				if (!studio.peripheralDeviceSettings.ingestDevices.defaults) {
-					update['peripheralDeviceSettings.ingestDevices.defaults'] = {}
-				}
-				if (!studio.peripheralDeviceSettings.ingestDevices.overrides) {
-					update['peripheralDeviceSettings.ingestDevices.overrides'] = []
-				}
-				if (!studio.peripheralDeviceSettings.inputDevices.defaults) {
-					update['peripheralDeviceSettings.inputDevices.defaults'] = {}
-				}
-				if (!studio.peripheralDeviceSettings.inputDevices.overrides) {
-					update['peripheralDeviceSettings.inputDevices.overrides'] = []
-				}
 
-				if (Object.keys(update).length) {
-					await Studios.updateAsync(studio._id, {
-						$set: update,
-					})
-				}
+			const neededPieceIds: Array<PieceId | AdLibActionId | RundownBaselineAdLibActionId> = _.compact(
+				objects.map((obj) => obj.pieceId)
+			)
+			const [pieces, adlibPieces, adlibActions] = await Promise.all([
+				Pieces.findFetchAsync(
+					{
+						_id: { $in: neededPieceIds as PieceId[] },
+					},
+					{
+						projection: {
+							_id: 1,
+							startPartId: 1,
+						},
+					}
+				) as Promise<Pick<Piece, '_id' | 'startPartId'>[]>,
+				AdLibPieces.findFetchAsync(
+					{
+						_id: { $in: neededPieceIds as PieceId[] },
+					},
+					{
+						projection: {
+							_id: 1,
+							partId: 1,
+						},
+					}
+				) as Promise<Pick<AdLibPiece, '_id' | 'partId'>[]>,
+				AdLibActions.findFetchAsync(
+					{
+						_id: { $in: neededPieceIds as AdLibActionId[] },
+					},
+					{
+						projection: {
+							_id: 1,
+							partId: 1,
+						},
+					}
+				) as Promise<Pick<AdLibAction, '_id' | 'partId'>[]>,
+			])
+
+			const partIdLookup = new Map<PieceId | AdLibActionId | RundownBaselineAdLibActionId, PartId>()
+			for (const piece of pieces) {
+				partIdLookup.set(piece._id, piece.startPartId)
+			}
+			for (const adlib of adlibPieces) {
+				if (adlib.partId) partIdLookup.set(adlib._id, adlib.partId)
+			}
+			for (const action of adlibActions) {
+				partIdLookup.set(action._id, action.partId)
+			}
+
+			for (const expectedPackage of objects) {
+				if (!expectedPackage.pieceId) continue
+
+				await ExpectedPackages.mutableCollection.updateAsync(expectedPackage._id, {
+					$set: {
+						partId: partIdLookup.get(expectedPackage.pieceId) ?? protectString(''),
+					},
+				})
 			}
 		},
 	},
