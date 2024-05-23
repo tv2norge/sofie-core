@@ -60,7 +60,7 @@
 		"@sofie-automation/shared-lib": "1.50.1",
 		"debug": "^4.3.3",
 		"influx": "^5.9.3",
-		"timeline-state-resolver": "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver&commit=0bab7b0db0f65173af9b62162a0cf69a1bb465ce",
+		"timeline-state-resolver": "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99",
 		"tslib": "^2.5.1",
 		"underscore": "^1.13.4",
 		"winston": "^3.8.2"

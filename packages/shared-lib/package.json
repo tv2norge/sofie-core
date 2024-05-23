@@ -39,7 +39,7 @@
 	],
 	"dependencies": {
 		"@mos-connection/model": "^3.0.4",
-		"timeline-state-resolver-types": "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver-types&commit=0bab7b0db0f65173af9b62162a0cf69a1bb465ce",
+		"timeline-state-resolver-types": "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver-types&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99",
 		"tslib": "^2.4.0",
 		"type-fest": "^2.19.0"
 	},
