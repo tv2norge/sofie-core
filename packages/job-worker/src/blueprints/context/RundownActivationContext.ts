@@ -1,4 +1,9 @@
-import { IBlueprintPlayoutDevice, IRundownActivationContext, TSR } from '@sofie-automation/blueprints-integration'
+import {
+	DatastorePersistenceMode,
+	IBlueprintPlayoutDevice,
+	IRundownActivationContext,
+	TSR,
+} from '@sofie-automation/blueprints-integration'
 import { PeripheralDeviceId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
 import { ReadonlyDeep } from 'type-fest'
 import { JobContext, ProcessedShowStyleCompound } from '../../jobs'
@@ -6,6 +11,8 @@ import { executePeripheralDeviceAction, listPlayoutDevices } from '../../periphe
 import { CacheForPlayout } from '../../playout/cache'
 import { RundownEventContext } from './RundownEventContext'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
+import { protectString } from '@sofie-automation/corelib/dist/protectedString'
+import { getDatastoreId } from '../../playout/datastore'
 
 export class RundownActivationContext extends RundownEventContext implements IRundownActivationContext {
 	private readonly _cache: CacheForPlayout
@@ -39,5 +46,30 @@ export class RundownActivationContext extends RundownEventContext implements IRu
 		payload: Record<string, any>
 	): Promise<TSR.ActionExecutionResult> {
 		return executePeripheralDeviceAction(this._context, deviceId, null, actionId, payload)
+	}
+
+	async setTimelineDatastoreValue(key: string, value: unknown, mode: DatastorePersistenceMode): Promise<void> {
+		const studioId = this._context.studioId
+		const id = protectString(`${studioId}_${key}`)
+		const collection = this._context.directCollections.TimelineDatastores
+
+		await collection.replace({
+			_id: id,
+			studioId: studioId,
+
+			key,
+			value,
+
+			modified: Date.now(),
+			mode,
+		})
+	}
+
+	async removeTimelineDatastoreValue(key: string): Promise<void> {
+		const studioId = this._context.studioId
+		const id = getDatastoreId(studioId, key)
+		const collection = this._context.directCollections.TimelineDatastores
+
+		await collection.remove({ _id: id })
 	}
 }

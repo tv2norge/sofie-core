@@ -3343,19 +3343,60 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hapi/hoek@npm:^9.0.0":
+"@hapi/boom@npm:^10.0.1":
+  version: 10.0.1
+  resolution: "@hapi/boom@npm:10.0.1"
+  dependencies:
+    "@hapi/hoek": ^11.0.2
+  checksum: c80f76e86386c65fb5e3f2aae489e82c318615b52c1462af913b1db3d05ebf1564336e2cd88f1ee79d66a8b6f48fa075089c617bfe93ad88e6e1a695d0cde499
+  languageName: node
+  linkType: hard
+
+"@hapi/bourne@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@hapi/bourne@npm:3.0.0"
+  checksum: 7174cab6c33191918fcdb1953fe3169a1106e6ac79a67ef5fd08b351f0813f8f608170f2239786cbe5519e03cdfe5ab748ea1635caa06dcd5802410295514ef8
+  languageName: node
+  linkType: hard
+
+"@hapi/hoek@npm:^10.0.1":
+  version: 10.0.1
+  resolution: "@hapi/hoek@npm:10.0.1"
+  checksum: 6dbcd7ae138fc751b2d81169516668bc6e4b878bb2bfdfab5eb3d51fdfd361544cc791ff12375587bf71dbeb801810cd62105f5d744dfa457140fb1709bbea6f
+  languageName: node
+  linkType: hard
+
+"@hapi/hoek@npm:^11.0.2":
+  version: 11.0.4
+  resolution: "@hapi/hoek@npm:11.0.4"
+  checksum: 67dc9782a8235e066e3885352e40faa3c239621d7de29bfc88a72aba60eeb8df76b5c05d77962c734c8b0ef3fc7f818cc692689003d270a1b73ea98ba1508c5b
+  languageName: node
+  linkType: hard
+
+"@hapi/hoek@npm:^9.0.0, @hapi/hoek@npm:^9.3.0":
   version: 9.3.0
   resolution: "@hapi/hoek@npm:9.3.0"
   checksum: 4771c7a776242c3c022b168046af4e324d116a9d2e1d60631ee64f474c6e38d1bb07092d898bf95c7bc5d334c5582798a1456321b2e53ca817d4e7c88bc25b43
   languageName: node
   linkType: hard
 
-"@hapi/topo@npm:^5.0.0":
+"@hapi/topo@npm:^5.0.0, @hapi/topo@npm:^5.1.0":
   version: 5.1.0
   resolution: "@hapi/topo@npm:5.1.0"
   dependencies:
     "@hapi/hoek": ^9.0.0
   checksum: 604dfd5dde76d5c334bd03f9001fce69c7ce529883acf92da96f4fe7e51221bf5e5110e964caca287a6a616ba027c071748ab636ff178ad750547fba611d6014
+  languageName: node
+  linkType: hard
+
+"@hapi/wreck@npm:^18.0.0":
+  version: 18.1.0
+  resolution: "@hapi/wreck@npm:18.1.0"
+  dependencies:
+    "@hapi/boom": ^10.0.1
+    "@hapi/bourne": ^3.0.0
+    "@hapi/hoek": ^11.0.2
+  checksum: 08e20e829a46fcdd1595b7181d3c0f94bc1cd2966aaf272138a6b80fa5266852295189295169903be20ef53bb35ba7b9a9080ce7e1147116ffce4db492b99bec
   languageName: node
   linkType: hard
 
@@ -4941,6 +4982,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sideway/address@npm:^4.1.5":
+  version: 4.1.5
+  resolution: "@sideway/address@npm:4.1.5"
+  dependencies:
+    "@hapi/hoek": ^9.0.0
+  checksum: 3e3ea0f00b4765d86509282290368a4a5fd39a7995fdc6de42116ca19a96120858e56c2c995081def06e1c53e1f8bccc7d013f6326602bec9d56b72ee2772b9d
+  languageName: node
+  linkType: hard
+
 "@sideway/formula@npm:^3.0.1":
   version: 3.0.1
   resolution: "@sideway/formula@npm:3.0.1"
@@ -5158,7 +5208,7 @@ __metadata:
   resolution: "@sofie-automation/shared-lib@workspace:shared-lib"
   dependencies:
     "@mos-connection/model": ^3.0.4
-    timeline-state-resolver-types: 9.0.1
+    timeline-state-resolver-types: "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver-types&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99"
     tslib: ^2.4.0
     type-fest: ^2.19.0
   languageName: unknown
@@ -6067,11 +6117,11 @@ __metadata:
   linkType: hard
 
 "@types/safer-buffer@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "@types/safer-buffer@npm:2.1.0"
+  version: 2.1.3
+  resolution: "@types/safer-buffer@npm:2.1.3"
   dependencies:
     "@types/node": "*"
-  checksum: 250091194a23995856cf740435adf66320f8df31a9b4b1828b9b217281776a79bdb4fee9890606607e39fc027d9cf453b0059f3fd988d34f78ba93ca63f7fefa
+  checksum: 2e56661caf92af045c72b473233fe10667e2d794cd5ae5a65a8f7f22dae5879fb68f43de4968867111afd7ab85b4972c455200f434d139df89a31f9f115eedde
   languageName: node
   linkType: hard
 
@@ -7547,10 +7597,17 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"big-integer@npm:^1.6.44, big-integer@npm:^1.6.51":
+"big-integer@npm:^1.6.44":
   version: 1.6.51
   resolution: "big-integer@npm:1.6.51"
   checksum: 3d444173d1b2e20747e2c175568bedeebd8315b0637ea95d75fd27830d3b8e8ba36c6af40374f36bdaea7b5de376dcada1b07587cb2a79a928fccdb6e6e3c518
+  languageName: node
+  linkType: hard
+
+"big-integer@npm:^1.6.51":
+  version: 1.6.52
+  resolution: "big-integer@npm:1.6.52"
+  checksum: 6e86885787a20fed96521958ae9086960e4e4b5e74d04f3ef7513d4d0ad631a9f3bde2730fc8aaa4b00419fc865f6ec573e5320234531ef37505da7da192c40b
   languageName: node
   linkType: hard
 
@@ -14339,6 +14396,19 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
+"joi@npm:^17.6.4":
+  version: 17.13.1
+  resolution: "joi@npm:17.13.1"
+  dependencies:
+    "@hapi/hoek": ^9.3.0
+    "@hapi/topo": ^5.1.0
+    "@sideway/address": ^4.1.5
+    "@sideway/formula": ^3.0.1
+    "@sideway/pinpoint": ^2.0.0
+  checksum: e755140446a0e0fb679c0f512d20dfe1625691de368abe8069507c9bccae5216b5bb56b5a83100a600808b1753ab44fdfdc9933026268417f84b6e0832a9604e
+  languageName: node
+  linkType: hard
+
 "js-sdsl@npm:^4.1.4":
   version: 4.4.0
   resolution: "js-sdsl@npm:4.4.0"
@@ -18057,7 +18127,7 @@ asn1@evs-broadcast/node-asn1:
     "@sofie-automation/shared-lib": 1.50.1
     debug: ^4.3.3
     influx: ^5.9.3
-    timeline-state-resolver: 9.0.1
+    timeline-state-resolver: "https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99"
     tslib: ^2.5.1
     underscore: ^1.13.4
     winston: ^3.8.2
@@ -20094,7 +20164,14 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"sax@npm:>=0.6.0, sax@npm:^1.2.4, sax@npm:~1.2.4":
+"sax@npm:>=0.6.0":
+  version: 1.3.0
+  resolution: "sax@npm:1.3.0"
+  checksum: 238ab3a9ba8c8f8aaf1c5ea9120386391f6ee0af52f1a6a40bbb6df78241dd05d782f2359d614ac6aae08c4c4125208b456548a6cf68625aa4fe178486e63ecd
+  languageName: node
+  linkType: hard
+
+"sax@npm:^1.2.4, sax@npm:~1.2.4":
   version: 1.2.4
   resolution: "sax@npm:1.2.4"
   checksum: d3df7d32b897a2c2f28e941f732c71ba90e27c24f62ee918bd4d9a8cfb3553f2f81e5493c7f0be94a11c1911b643a9108f231dd6f60df3fa9586b5d2e3e9e1fe
@@ -20515,6 +20592,18 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
+"simple-oauth2@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "simple-oauth2@npm:5.0.0"
+  dependencies:
+    "@hapi/hoek": ^10.0.1
+    "@hapi/wreck": ^18.0.0
+    debug: ^4.3.4
+    joi: ^17.6.4
+  checksum: 1cdf7fba0c8e7d1f5d4eb39507ad9cbafc0347813b4bdf067e853514cbd12f2770c278719ec508f2f055e5b60dd10ef153f75a477c2fd59345e5b8d2d82e8248
+  languageName: node
+  linkType: hard
+
 "simple-swizzle@npm:^0.2.2":
   version: 0.2.2
   resolution: "simple-swizzle@npm:0.2.2"
@@ -20909,9 +20998,9 @@ asn1@evs-broadcast/node-asn1:
   linkType: hard
 
 "sprintf-js@npm:^1.1.2":
-  version: 1.1.2
-  resolution: "sprintf-js@npm:1.1.2"
-  checksum: d4bb46464632b335e5faed381bd331157e0af64915a98ede833452663bc672823db49d7531c32d58798e85236581fb7342fd0270531ffc8f914e186187bf1c90
+  version: 1.1.3
+  resolution: "sprintf-js@npm:1.1.3"
+  checksum: a3fdac7b49643875b70864a9d9b469d87a40dfeaf5d34d9d0c5b1cda5fd7d065531fcb43c76357d62254c57184a7b151954156563a4d6a747015cfb41021cad0
   languageName: node
   linkType: hard
 
@@ -21635,7 +21724,7 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"threadedclass@npm:^1.1.2, threadedclass@npm:^1.2.1":
+"threadedclass@npm:^1.1.2":
   version: 1.2.1
   resolution: "threadedclass@npm:1.2.1"
   dependencies:
@@ -21644,6 +21733,18 @@ asn1@evs-broadcast/node-asn1:
     is-running: ^2.1.0
     tslib: ^1.13.0
   checksum: 2f9cab0df9ed21865f6f874ff7e352bbc32c9970bb48f132ae9bd71d9203655089ad065fa8438bdb786e381c3e0284b43bf7f281ad607962ab365781ea9aef6f
+  languageName: node
+  linkType: hard
+
+"threadedclass@npm:^1.2.1":
+  version: 1.2.2
+  resolution: "threadedclass@npm:1.2.2"
+  dependencies:
+    callsites: ^3.1.0
+    eventemitter3: ^4.0.4
+    is-running: ^2.1.0
+    tslib: ^1.13.0
+  checksum: 9bf8a0fab0105178885f7ad26b8f8a807935f66f59d348ab5c1bf5ac0bd19c1f4c64aebc3f017073a7f57d20658a53798bc8eae6f822d79ec071d3e0e009389d
   languageName: node
   linkType: hard
 
@@ -21687,6 +21788,15 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
+"timeline-state-resolver-types@https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver-types&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99":
+  version: 9.0.1
+  resolution: "timeline-state-resolver-types@https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver-types&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99"
+  dependencies:
+    tslib: ^2.5.1
+  checksum: 41117a1bd4e7d491e0274fa54a18beaabdb6fbe65bb738440eaef282c16e8162a087f4329cf839571870ffca22259b7e4b5d76f6e2d67e0571cf3160b80e885e
+  languageName: node
+  linkType: hard
+
 "timeline-state-resolver-types@npm:9.0.1":
   version: 9.0.1
   resolution: "timeline-state-resolver-types@npm:9.0.1"
@@ -21696,9 +21806,9 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"timeline-state-resolver@npm:9.0.1":
+"timeline-state-resolver@https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99":
   version: 9.0.1
-  resolution: "timeline-state-resolver@npm:9.0.1"
+  resolution: "timeline-state-resolver@https://gitpkg.now.sh/api/pkg.tgz?url=tv2norge-collab/sofie-timeline-state-resolver/packages/timeline-state-resolver&commit=aef474734712f6c2b6b1bd813f38fe9d8edd8d99"
   dependencies:
     "@tv2media/v-connection": ^7.3.2
     atem-connection: 2.5.0
@@ -21717,6 +21827,7 @@ asn1@evs-broadcast/node-asn1:
     p-all: ^3.0.0
     p-queue: ^6.6.2
     p-timeout: ^3.2.0
+    simple-oauth2: ^5.0.0
     sprintf-js: ^1.1.2
     superfly-timeline: ^8.3.1
     threadedclass: ^1.2.1
@@ -21728,7 +21839,7 @@ asn1@evs-broadcast/node-asn1:
     utf-8-validate: ^5.0.10
     ws: ^7.5.9
     xml-js: ^1.6.11
-  checksum: 3769f084c29d0bee4bf6f80e48a395e838956d8ec9d0f57539fd8d90c9e71f9abab24167edfcf8d103e86e31e965bcf77acd85fab8f111e47208aa908b0ac8bc
+  checksum: ca662b20a0da1c1a545e83f96781374be770a4901eba51335d5bcba0261badbeabd259315087b93591f1852fab876165542a087a34210ee3faa1c80b9fbc7723
   languageName: node
   linkType: hard
 
