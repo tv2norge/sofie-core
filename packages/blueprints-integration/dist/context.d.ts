@@ -96,7 +96,7 @@ export interface IRundownContext extends IShowStyleContext {
 }
 export interface IRundownUserContext extends IUserNotesContext, IRundownContext {
 }
-export interface IRundownActivationContext extends IRundownContext {
+export interface IRundownActivationContext extends IRundownContext, IDataStoreContext {
     /** Execute an action on a certain PeripheralDevice */
     executeTSRAction(deviceId: PeripheralDeviceId, actionId: string, payload: Record<string, any>): Promise<TSR.ActionExecutionResult>;
     /** Returns a list of the PeripheralDevices */
@@ -116,8 +116,7 @@ export interface ISegmentUserContext extends IUserNotesContext, IRundownContext,
         [key: string]: any;
     }, partExternalId?: string) => void;
 }
-/** Actions */
-export interface IDataStoreActionExecutionContext extends IShowStyleUserContext, IEventContext {
+export interface IDataStoreContext {
     /**
      * Setting a value in the datastore allows us to overwrite parts of a timeline content object with that value
      * @param key Key to use when referencing from the timeline object
@@ -127,6 +126,9 @@ export interface IDataStoreActionExecutionContext extends IShowStyleUserContext,
     setTimelineDatastoreValue(key: string, value: any, mode: DatastorePersistenceMode): Promise<void>;
     /** Deletes a previously set value from the datastore */
     removeTimelineDatastoreValue(key: string): Promise<void>;
+}
+/** Actions */
+export interface IDataStoreActionExecutionContext extends IShowStyleUserContext, IEventContext, IDataStoreContext {
 }
 export interface IActionExecutionContext extends IShowStyleUserContext, IEventContext, IDataStoreActionExecutionContext {
     /** Data fetching */
