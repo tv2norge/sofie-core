@@ -506,7 +506,6 @@ jobs:
       packages: write
       id-token: write
     # only run for tags
-    if: contains(github.ref, 'refs/tags/')
     needs:
       - test-packages
       # core must be published first
@@ -535,7 +534,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Configure CodeArtifact Token
         run: |
-          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain sofie --domain-owner 801094922828 --query authorizationToken --output text --region eu-north-1) >> $GITHUB_ENV
+          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain selma --domain-owner 801094922828 --query authorizationToken --output text --region eu-north-1) >> $GITHUB_ENV
       - name: Check release is desired
         id: do-publish
         run: |
@@ -572,7 +571,7 @@ jobs:
 
           cd packages
           git checkout .yarnrc.yml
-          aws codeartifact login --tool npm --repository sofie --domain sofie --domain-owner 801094922828 --region eu-north-1
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner 801094922828 --region eu-north-1
           yarn lerna publish from-package --tag-version-prefix='' --dist-tag ${{ steps.do-publish.outputs.tag }} --yes --no-verify-access
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
