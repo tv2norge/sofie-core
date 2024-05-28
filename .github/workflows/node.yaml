@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +36,15 @@ jobs:
             meteor/node_modules
             packages/node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock', 'meteor/yarn.lock', 'meteor/.meteor/release', 'packages/yarn.lock') }}
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
+      - name: Configure CodeArtifact Token
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }} --query authorizationToken --output text`
+          yarn config set npmRegistryServer "https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAuthToken' "${CODEARTIFACT_AUTH_TOKEN}"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAlwaysAuth' "true"
       - name: Prepare Environment
         run: |
           yarn config set cacheFolder /home/runner/lint-core-cache
@@ -50,6 +63,10 @@ jobs:
     name: Test Core
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +84,15 @@ jobs:
             meteor/node_modules
             packages/node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock', 'meteor/yarn.lock', 'meteor/.meteor/release', 'packages/yarn.lock') }}
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
+      - name: Configure CodeArtifact Token
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }} --query authorizationToken --output text`
+          yarn config set npmRegistryServer "https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAuthToken' "${CODEARTIFACT_AUTH_TOKEN}"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAlwaysAuth' "true"
       - name: Prepare Environment
         run: |
           yarn config set cacheFolder /home/runner/test-core-cache
@@ -588,6 +614,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: ".node-version"
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
+      - name: Configure CodeArtifact Token
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }} --query authorizationToken --output text`
+          yarn config set npmRegistryServer "https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAuthToken' "${CODEARTIFACT_AUTH_TOKEN}"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAlwaysAuth' "true"
       - name: Prepare Environment # have to run this first to make sure the semver lib is available
         run: |
           yarn config set cacheFolder /home/runner/release-libs-cache
@@ -596,14 +636,6 @@ jobs:
           yarn install
         env:
           CI: true
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Configure CodeArtifact Token
-        run: |
-          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --query authorizationToken --output text --region ${{ secrets.AWS_REGION }}) >> $GITHUB_ENV
       - name: Check release is desired
         id: do-publish
         run: |
@@ -653,6 +685,10 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -670,6 +706,15 @@ jobs:
             meteor/node_modules
             packages/node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock', 'meteor/yarn.lock', 'meteor/.meteor/release', 'packages/yarn.lock') }}
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
+      - name: Configure CodeArtifact Token
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }} --query authorizationToken --output text`
+          yarn config set npmRegistryServer "https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAuthToken' "${CODEARTIFACT_AUTH_TOKEN}"
+          yarn config set 'npmRegistries["https://selma-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ secrets.AWS_REGION }}.amazonaws.com/npm/selma-store/"].npmAlwaysAuth' "true"
       - name: Prepare Environment
         run: |
           yarn config set cacheFolder /home/runner/check-for-multiple-library-versions-cache
