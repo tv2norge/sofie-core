@@ -114,7 +114,7 @@ jobs:
           echo "ecrrepo-publish=$ECRREPO_PUBLISH" >> $GITHUB_OUTPUT
       - name: Configure AWS Credentials
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
@@ -244,7 +244,7 @@ jobs:
           echo "ecrrepo-publish=$ECRREPO_PUBLISH" >> $GITHUB_OUTPUT
       - name: Configure AWS Credentials
         if: steps.ecrrepo.outputs.ecrrepo-publish == '1'
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
@@ -528,13 +528,13 @@ jobs:
         env:
           CI: true
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Configure CodeArtifact Token
         run: |
-          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain selma --domain-owner 801094922828 --query authorizationToken --output text --region eu-north-1) >> $GITHUB_ENV
+          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --query authorizationToken --output text --region ${{ secrets.AWS_REGION }}) >> $GITHUB_ENV
       - name: Check release is desired
         id: do-publish
         run: |
@@ -563,7 +563,7 @@ jobs:
           CI: true
       - name: Modify dependencies to use npm packages
         run: node scripts/prepublish.js
-      - name: Publish to NPM
+      - name: Publish to Code Artifact
         if: ${{ steps.do-publish.outputs.tag }}
         run: |
           # hack as it can sometimes have unexpected changes
@@ -571,7 +571,7 @@ jobs:
 
           cd packages
           git checkout .yarnrc.yml
-          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner 801094922828 --region eu-north-1
+          aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
           yarn lerna publish from-package --tag-version-prefix='' --dist-tag ${{ steps.do-publish.outputs.tag }} --yes --no-verify-access
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
