@@ -117,9 +117,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
-      - name: Configure CodeArtifact Token
-        run: |
-          echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain selma --domain-owner 801094922828 --query authorizationToken --output text --region eu-north-1) >> $GITHUB_ENV
       - name: Bump version
         if: ${{ steps.do-publish.outputs.publish }}
         run: |
