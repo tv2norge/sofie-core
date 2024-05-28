@@ -50,19 +50,3 @@ jobs:
                 echo "No Untageed images found in ${REPO}"
               fi
            done
-      - name: Fetch all remote branches
-        run: git branch -r > branches.txt
-
-      - name: Clean up ECR images without existing branches
-        run: |
-          for REPO in $REPOSITORY_NAMES ; do
-              IMAGE_TAGS=$(aws ecr list-images --region ${{ secrets.AWS_REGION }} --repository-name ${REPO} --query "imageIds[?type(imageTag)==\`string\`].[imageTag]" --output text)              
-
-              for TAG in $IMAGE_TAGS; do 
-                  # Check if branch exists
-                  if ! grep -xq ${TAG} branches.txt ; then
-                    echo "Deleting image with tag (non-existing branch): ${TAG}"
-                    aws ecr batch-delete-image --region ${{ secrets.AWS_REGION }} --repository-name ${REPO} --image-ids imageTag=${TAG}
-                  fi
-              done
-          done
