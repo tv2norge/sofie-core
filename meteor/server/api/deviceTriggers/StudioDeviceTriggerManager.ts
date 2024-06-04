@@ -166,8 +166,6 @@ export class StudioDeviceTriggerManager {
 				})
 			})
 
-			console.log(`updating ${triggeredAction._id}, gen ${addedPreviewIds}`)
-
 			DeviceTriggerMountedActionAdlibsPreview.remove({
 				triggeredActionId: triggeredAction._id,
 				_id: {
