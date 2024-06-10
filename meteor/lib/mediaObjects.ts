@@ -1,6 +1,4 @@
 import { PackageInfo } from '@sofie-automation/blueprints-integration'
-import { PieceStatusCode } from './collections/Pieces'
-import { ITranslatableMessage } from '@sofie-automation/corelib/dist/TranslatableMessage'
 
 export interface ScanInfoForPackages {
 	[packageId: string]: ScanInfoForPackage
@@ -13,16 +11,4 @@ export interface ScanInfoForPackage {
 	timebase?: number // derived from scan
 }
 
-export interface PieceContentStatusObj {
-	status: PieceStatusCode
-	messages: ITranslatableMessage[]
-
-	freezes: Array<PackageInfo.Anomaly>
-	blacks: Array<PackageInfo.Anomaly>
-	scenes: Array<number>
-
-	thumbnailUrl: string | undefined
-	previewUrl: string | undefined
-
-	packageName: string | null
-}
+export { PieceContentStatusObj } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
