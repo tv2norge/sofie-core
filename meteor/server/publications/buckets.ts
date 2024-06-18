@@ -40,7 +40,9 @@ meteorPublish(PubSub.buckets, async function (studioId, bucketId, _token) {
 meteorPublish(PubSub.bucketAdLibPieces, async function (selector, _token) {
 	if (!selector) throw new Meteor.Error(400, 'selector argument missing')
 	const modifier: FindOptions<BucketAdLib> = {
-		fields: {},
+		fields: {
+			privateData: 0,
+		},
 	}
 	if (
 		(isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) ||
@@ -54,7 +56,9 @@ meteorPublish(PubSub.bucketAdLibPieces, async function (selector, _token) {
 meteorPublish(PubSub.bucketAdLibActions, async function (selector, _token) {
 	if (!selector) throw new Meteor.Error(400, 'selector argument missing')
 	const modifier: FindOptions<BucketAdLibAction> = {
-		fields: {},
+		fields: {
+			privateData: 0,
+		},
 	}
 	if (
 		(isProtectedString(selector.bucketId) && (await BucketSecurity.allowReadAccess(this, selector.bucketId))) ||
