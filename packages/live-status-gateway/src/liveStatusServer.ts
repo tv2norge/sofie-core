@@ -27,6 +27,8 @@ import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler'
 import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler'
 import { BucketsHandler } from './collections/bucketsHandler'
 import { ActivePiecesTopic } from './topics/activePiecesTopic'
+import { PieceContentStatusesHandler } from './collections/pieceContentStatusesHandler'
+import { PackagesTopic } from './topics/packagesTopic'
 
 export class LiveStatusServer {
 	_logger: Logger
@@ -49,6 +51,7 @@ export class LiveStatusServer {
 		const segmentsTopic = new SegmentsTopic(this._logger)
 		const adLibsTopic = new AdLibsTopic(this._logger)
 		const bucketsTopic = new BucketsTopic(this._logger)
+		const packageStatusTopic = new PackagesTopic(this._logger)
 
 		rootChannel.addTopic(StatusChannels.studio, studioTopic)
 		rootChannel.addTopic(StatusChannels.activePlaylist, activePlaylistTopic)
@@ -56,6 +59,7 @@ export class LiveStatusServer {
 		rootChannel.addTopic(StatusChannels.segments, segmentsTopic)
 		rootChannel.addTopic(StatusChannels.adLibs, adLibsTopic)
 		rootChannel.addTopic(StatusChannels.buckets, bucketsTopic)
+		rootChannel.addTopic(StatusChannels.packages, packageStatusTopic)
 
 		const studioHandler = new StudioHandler(this._logger, this._coreHandler)
 		await studioHandler.init()
@@ -93,6 +97,8 @@ export class LiveStatusServer {
 		await bucketAdLibsHandler.init()
 		const bucketAdLibActionsHandler = new BucketAdLibActionsHandler(this._logger, this._coreHandler)
 		await bucketAdLibActionsHandler.init()
+		const pieceContentStatusesHandler = new PieceContentStatusesHandler(this._logger, this._coreHandler)
+		await pieceContentStatusesHandler.init()
 
 		// add observers for collection subscription updates
 		await playlistHandler.subscribe(rundownHandler)
@@ -100,6 +106,7 @@ export class LiveStatusServer {
 		await playlistHandler.subscribe(partHandler)
 		await playlistHandler.subscribe(partInstancesHandler)
 		await playlistHandler.subscribe(pieceInstancesHandler)
+		await playlistHandler.subscribe(pieceContentStatusesHandler)
 		await rundownHandler.subscribe(showStyleBaseHandler)
 		await partInstancesHandler.subscribe(rundownHandler)
 		await partInstancesHandler.subscribe(segmentHandler)
@@ -138,6 +145,9 @@ export class LiveStatusServer {
 		await bucketsHandler.subscribe(bucketsTopic)
 		await bucketAdLibsHandler.subscribe(bucketsTopic)
 		await bucketAdLibActionsHandler.subscribe(bucketsTopic)
+
+		await playlistHandler.subscribe(packageStatusTopic)
+		await pieceContentStatusesHandler.subscribe(packageStatusTopic)
 
 		const wss = new WebSocketServer({ port: 8080 })
 		wss.on('connection', (ws, request) => {
