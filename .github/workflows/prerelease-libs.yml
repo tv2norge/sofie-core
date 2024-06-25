@@ -185,16 +185,15 @@ jobs:
           CI: true
       - name: Modify dependencies to use npm packages
         run: node scripts/prepublish.js
-      - name: Publish to NPM
+      - name: Reset .yarnrc.yml
+        run: |
+          git checkout -- .yarnrc.yml
+      - name: Publish to CodeArtifact
         id: publish-npm
         if: ${{ steps.do-publish.outputs.publish }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
-
           cd packages
-
-          yarn lerna publish from-package --tag-version-prefix='' --dist-tag nightly --yes --no-verify-access
-
+          yarn lerna publish from-package --tag-version-prefix='' --dist-tag nightly --yes --no-verify-access --no-git-reset
           NEW_VERSION=$(node -p "require('./lerna.json').version")
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "**Published:** $NEW_VERSION" >> $GITHUB_STEP_SUMMARY

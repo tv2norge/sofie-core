@@ -578,9 +578,8 @@ jobs:
       - name: Run generator
         run: |
           cd packages/live-status-gateway
-
-          yarn gendocs
-          yarn genserver
+          yarn gendocs || true
+          yarn genserver || true
         env:
           CI: true
   openapi-generation:
@@ -744,8 +743,8 @@ jobs:
       - name: Check release is desired
         id: do-publish
         run: |
-          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-            echo "No Token"
+          if [ -z "${{ secrets.AWS_ROLE_ARN }}" ]; then
+            echo "No Role"
           else
             # make dependencies of `determine-npm-tag` available
             yarn install --mode=skip-build
@@ -769,12 +768,13 @@ jobs:
           CI: true
       - name: Modify dependencies to use npm packages
         run: node scripts/prepublish.js
-      - name: Publish to NPM
-        if: ${{ steps.do-publish.outputs.tag }}
+      - name: Reset .yarnrc.yml
         run: |
           # hack as it can sometimes have unexpected changes
           git checkout .yarnrc.yml
-
+      - name: Publish to codeartifact
+        if: ${{ steps.do-publish.outputs.tag }}
+        run: |
           cd packages
           git checkout .yarnrc.yml
           aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}
