@@ -673,12 +673,13 @@ jobs:
           CI: true
       - name: Modify dependencies to use npm packages
         run: node scripts/prepublish.js
-      - name: Publish to Code Artifact
-        if: ${{ steps.do-publish.outputs.tag }}
+      - name: Reset .yarnrc.yml
         run: |
           # hack as it can sometimes have unexpected changes
           git checkout .yarnrc.yml
-
+      - name: Publish to Code Artifact
+        if: ${{ steps.do-publish.outputs.tag }}
+        run: |
           cd packages
           git checkout .yarnrc.yml
           aws codeartifact login --tool npm --repository selma-store --domain selma --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} --region ${{ secrets.AWS_REGION }}

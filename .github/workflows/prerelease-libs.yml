@@ -184,6 +184,9 @@ jobs:
           CI: true
       - name: Modify dependencies to use npm packages
         run: node scripts/prepublish.js
+      - name: Reset .yarnrc.yml
+        run: |
+          git checkout -- .yarnrc.yml
       - name: Publish to CodeArtifact
         id: publish-npm
         if: ${{ steps.do-publish.outputs.publish }}
