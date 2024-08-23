@@ -65,6 +65,7 @@ export enum PrompterConfigMode {
 	SHUTTLEKEYBOARD = 'shuttlekeyboard',
 	JOYCON = 'joycon',
 	PEDAL = 'pedal',
+	SHUTTLEWEBHID = 'shuttlewebhid',
 }
 
 export interface IPrompterControllerState {
@@ -82,8 +83,14 @@ interface ITrackedProps {
 	studio?: UIStudio
 }
 
+export interface AccessRequestCallback {
+	deviceName: string
+	callback: () => void
+}
+
 interface IState {
 	subsReady: boolean
+	accessRequestCallbacks: AccessRequestCallback[]
 }
 
 function asArray<T>(value: T | T[] | null): T[] {
@@ -112,6 +119,7 @@ export class PrompterViewInner extends MeteorReactComponent<Translated<IProps & 
 		super(props)
 		this.state = {
 			subsReady: false,
+			accessRequestCallbacks: [],
 		}
 		// Disable the context menu:
 		document.addEventListener('contextmenu', (e) => {
@@ -319,6 +327,19 @@ export class PrompterViewInner extends MeteorReactComponent<Translated<IProps & 
 		// margin in pixels
 		return ((this.configOptions.margin || 0) * window.innerHeight) / 100
 	}
+
+	public registerAccessRequestCallback(callback: AccessRequestCallback): void {
+		this.setState((state) => ({
+			accessRequestCallbacks: [...state.accessRequestCallbacks, callback],
+		}))
+	}
+
+	public unregisterAccessRequestCallback(callback: AccessRequestCallback): void {
+		this.setState((state) => ({
+			accessRequestCallbacks: state.accessRequestCallbacks.filter((candidate) => candidate !== callback),
+		}))
+	}
+
 	scrollToPartInstance(partInstanceId: PartInstanceId): void {
 		const scrollMargin = this.calculateScrollPosition()
 		const target = document.querySelector(`#partInstance_${partInstanceId}`)
@@ -495,6 +516,25 @@ export class PrompterViewInner extends MeteorReactComponent<Translated<IProps & 
 		)
 	}
 
+	private renderAccessRequestButtons() {
+		const { t } = this.props
+		return this.state.accessRequestCallbacks.length > 0 ? (
+			<div id="prompter-device-access">
+				{this.state.accessRequestCallbacks.map((accessRequest, i) => (
+					<button
+						className="btn btn-secondary"
+						key={i}
+						onClick={() => {
+							accessRequest.callback()
+						}}
+					>
+						{t('Connect to {{deviceName}}', { deviceName: accessRequest.deviceName })}
+					</button>
+				))}
+			</div>
+		) : null
+	}
+
 	render(): JSX.Element {
 		const { t } = this.props
 
@@ -532,6 +572,7 @@ export class PrompterViewInner extends MeteorReactComponent<Translated<IProps & 
 								}}
 							></div>
 						) : null}
+						{this.renderAccessRequestButtons()}
 					</>
 				) : this.props.studio ? (
 					<StudioScreenSaver studioId={this.props.studio._id} />
