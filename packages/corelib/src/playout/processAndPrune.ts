@@ -10,8 +10,20 @@ import { getPieceControlObjectId } from './ids'
 /**
  * Get the `enable: { start: ?? }` for the new piece in terms that can be used as an `end` for another object
  */
-function getPieceStartTime(newPieceStart: number | 'now', newPiece: PieceInstance): number | string {
+function getPieceStartTimeAsReference(newPieceStart: number | 'now', newPiece: PieceInstance): number | string {
 	return typeof newPieceStart === 'number' ? newPieceStart : `#${getPieceControlObjectId(newPiece)}.start`
+}
+
+function getPieceStartTimeWithinPart(p: PieceInstance): 'now' | number {
+	// If the piece is dynamically inserted, then its preroll should be factored into its start time, but not for any infinite continuations
+	const isStartOfAdlib =
+		!!p.dynamicallyInserted && !(p.infinite?.fromPreviousPart || p.infinite?.fromPreviousPlayhead)
+
+	if (isStartOfAdlib && p.piece.enable.start !== 'now') {
+		return p.piece.enable.start + (p.piece.prerollDuration ?? 0)
+	} else {
+		return p.piece.enable.start
+	}
 }
 
 function isClear(piece?: PieceInstance): boolean {
@@ -85,7 +97,7 @@ export function processAndPrunePieceInstanceTimings(
 	for (const pieces of groupedPieces.values()) {
 		// Group and sort the pieces so that we can step through each point in time
 		const piecesByStart: Array<[number | 'now', PieceInstance[]]> = _.sortBy(
-			Array.from(groupByToMapFunc(pieces, (p) => p.piece.enable.start).entries()).map(([k, v]) =>
+			Array.from(groupByToMapFunc(pieces, (p) => getPieceStartTimeWithinPart(p)).entries()).map(([k, v]) =>
 				literal<[number | 'now', PieceInstance[]]>([k === 'now' ? 'now' : Number(k), v])
 			),
 			([k]) => (k === 'now' ? nowInPart : k)
@@ -120,7 +132,7 @@ function updateWithNewPieces(
 	if (newPiece) {
 		const activePiece = activePieces[key]
 		if (activePiece) {
-			activePiece.resolvedEndCap = getPieceStartTime(newPiecesStart, newPiece)
+			activePiece.resolvedEndCap = getPieceStartTimeAsReference(newPiecesStart, newPiece)
 		}
 		// track the new piece
 		activePieces[key] = newPiece
@@ -145,7 +157,7 @@ function updateWithNewPieces(
 					(newPiecesStart !== 0 || isCandidateBetterToBeContinued(activePieces.other, newPiece))
 				) {
 					// These modes should stop the 'other' when they start if not hidden behind a higher priority onEnd
-					activePieces.other.resolvedEndCap = getPieceStartTime(newPiecesStart, newPiece)
+					activePieces.other.resolvedEndCap = getPieceStartTimeAsReference(newPiecesStart, newPiece)
 					activePieces.other = undefined
 				}
 			}
