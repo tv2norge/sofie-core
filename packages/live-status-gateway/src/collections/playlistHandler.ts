@@ -1,11 +1,15 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
 import { CollectionBase, Collection } from '../wsHandler'
-import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
+import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
+import { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
-export class PlaylistsHandler extends CollectionBase<DBRundownPlaylist[]> implements Collection<DBRundownPlaylist[]> {
+export class PlaylistsHandler
+	extends CollectionBase<DBRundownPlaylist[], undefined, CollectionName.RundownPlaylists>
+	implements Collection<DBRundownPlaylist[]>
+{
 	public observerName: string
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
@@ -30,14 +34,21 @@ export class PlaylistsHandler extends CollectionBase<DBRundownPlaylist[]> implem
 	}
 }
 
-export class PlaylistHandler extends CollectionBase<DBRundownPlaylist> implements Collection<DBRundownPlaylist> {
+export class PlaylistHandler
+	extends CollectionBase<DBRundownPlaylist, CorelibPubSub.rundownPlaylists, CollectionName.RundownPlaylists>
+	implements Collection<DBRundownPlaylist>
+{
 	public observerName: string
-	private _core: CoreConnection
 	private _playlistsHandler: PlaylistsHandler
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
-		super(PlaylistHandler.name, CollectionName.RundownPlaylists, 'rundownPlaylists', logger, coreHandler)
-		this._core = coreHandler.coreConnection
+		super(
+			PlaylistHandler.name,
+			CollectionName.RundownPlaylists,
+			CorelibPubSub.rundownPlaylists,
+			logger,
+			coreHandler
+		)
 		this.observerName = this._name
 		this._playlistsHandler = new PlaylistsHandler(this._logger, this._coreHandler)
 	}
@@ -50,6 +61,7 @@ export class PlaylistHandler extends CollectionBase<DBRundownPlaylist> implement
 		this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, {
 			studioId: this._studioId,
 		})
+		// this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, null, [this._studioId]) // in R51
 		this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
 		if (this._collectionName) {
 			const col = this._core.getCollection<DBRundownPlaylist>(this._collectionName)
@@ -57,16 +69,16 @@ export class PlaylistHandler extends CollectionBase<DBRundownPlaylist> implement
 			const playlists = col.find(undefined)
 			this._collectionData = playlists.find((p) => p.activationId)
 			await this._playlistsHandler.setPlaylists(playlists)
-			this._dbObserver.added = (id: string) => {
+			this._dbObserver.added = (id) => {
 				void this.changed(id, 'added').catch(this._logger.error)
 			}
-			this._dbObserver.changed = (id: string) => {
+			this._dbObserver.changed = (id) => {
 				void this.changed(id, 'changed').catch(this._logger.error)
 			}
 		}
 	}
 
-	async changed(id: string, changeType: string): Promise<void> {
+	async changed(id: RundownPlaylistId, changeType: string): Promise<void> {
 		this.logDocumentChange(id, changeType)
 		if (!this._collectionName) return
 		const collection = this._core.getCollection<DBRundownPlaylist>(this._collectionName)

@@ -1,36 +1,41 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
 import { CollectionBase, Collection, CollectionObserver } from '../wsHandler'
-import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { DBShowStyleBase, OutputLayers, SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
+import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { IOutputLayer, ISourceLayer } from '@sofie-automation/blueprints-integration'
 
 export interface ShowStyleBaseExt extends DBShowStyleBase {
 	sourceLayerNamesById: ReadonlyMap<string, string>
 	outputLayerNamesById: ReadonlyMap<string, string>
+	sourceLayers: SourceLayers
 }
 
 export class ShowStyleBaseHandler
-	extends CollectionBase<ShowStyleBaseExt>
+	extends CollectionBase<ShowStyleBaseExt, CorelibPubSub.showStyleBases, CollectionName.ShowStyleBases>
 	implements Collection<ShowStyleBaseExt>, CollectionObserver<DBRundown>
 {
 	public observerName: string
-	private _core: CoreConnection
 	private _showStyleBaseId: ShowStyleBaseId | undefined
 	private _sourceLayersMap: Map<string, string> = new Map()
 	private _outputLayersMap: Map<string, string> = new Map()
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
-		super(ShowStyleBaseHandler.name, CollectionName.ShowStyleBases, 'showStyleBases', logger, coreHandler)
-		this._core = coreHandler.coreConnection
+		super(
+			ShowStyleBaseHandler.name,
+			CollectionName.ShowStyleBases,
+			CorelibPubSub.showStyleBases,
+			logger,
+			coreHandler
+		)
 		this.observerName = this._name
 	}
 
-	async changed(id: string, changeType: string): Promise<void> {
+	async changed(id: ShowStyleBaseId, changeType: string): Promise<void> {
 		this.logDocumentChange(id, changeType)
 		if (!this._collectionName) return
 		if (this._showStyleBaseId) {
@@ -54,11 +59,14 @@ export class ShowStyleBaseHandler
 				this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, {
 					_id: this._showStyleBaseId,
 				})
+				// this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, [
+				// 	this._showStyleBaseId,
+				// ]) // In R51
 				this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
-				this._dbObserver.added = (id: string) => {
+				this._dbObserver.added = (id) => {
 					void this.changed(id, 'added').catch(this._logger.error)
 				}
-				this._dbObserver.changed = (id: string) => {
+				this._dbObserver.changed = (id) => {
 					void this.changed(id, 'changed').catch(this._logger.error)
 				}
 
@@ -69,7 +77,6 @@ export class ShowStyleBaseHandler
 	}
 
 	updateCollectionData(): void {
-		if (!this._collectionName) return
 		const collection = this._core.getCollection<DBShowStyleBase>(this._collectionName)
 		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
 		if (!this._showStyleBaseId) return
@@ -110,10 +117,11 @@ export class ShowStyleBaseHandler
 			if (outputLayer === undefined || outputLayer === null) continue
 			this._outputLayersMap.set(layerId, outputLayer.name)
 		}
-		const showStyleBaseExt = {
+		const showStyleBaseExt: ShowStyleBaseExt = {
 			...showStyleBase,
 			sourceLayerNamesById: this._sourceLayersMap,
 			outputLayerNamesById: this._outputLayersMap,
+			sourceLayers,
 		}
 		this._collectionData = showStyleBaseExt
 	}

@@ -1,19 +1,20 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
 import { CollectionBase, Collection, CollectionObserver } from '../wsHandler'
-import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
-import { UIPieceContentStatus } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
+import {
+	UIPieceContentStatus,
+	UIPieceContentStatusId,
+} from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
 import throttleToNextTick from '@sofie-automation/shared-lib/dist/lib/throttleToNextTick'
 import { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 
 export class PieceContentStatusesHandler
-	extends CollectionBase<UIPieceContentStatus[]>
+	extends CollectionBase<UIPieceContentStatus[], CorelibPubSub.uiPieceContentStatuses, 'uiPieceContentStatuses'>
 	implements Collection<UIPieceContentStatus[]>, CollectionObserver<DBRundownPlaylist>
 {
 	public observerName: string
-	private _core: CoreConnection
 	private _currentPlaylistId: RundownPlaylistId | undefined
 	private _subscriptionPending = false
 
@@ -24,16 +25,15 @@ export class PieceContentStatusesHandler
 	constructor(logger: Logger, coreHandler: CoreHandler) {
 		super(
 			PieceContentStatusesHandler.name,
-			'uiPieceContentStatuses' as CollectionName,
 			'uiPieceContentStatuses',
+			CorelibPubSub.uiPieceContentStatuses,
 			logger,
 			coreHandler
 		)
-		this._core = coreHandler.coreConnection
 		this.observerName = this._name
 	}
 
-	async changed(id: string, changeType: string): Promise<void> {
+	async changed(id: UIPieceContentStatusId, changeType: string): Promise<void> {
 		this.logDocumentChange(id, changeType)
 		if (!this._collectionName || this._subscriptionPending) return
 
@@ -74,13 +74,13 @@ export class PieceContentStatusesHandler
 				)
 				this._subscriptionPending = false
 				this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
-				this._dbObserver.added = (id: string) => {
+				this._dbObserver.added = (id) => {
 					void this.changed(id, 'added').catch(this._logger.error)
 				}
-				this._dbObserver.changed = (id: string) => {
+				this._dbObserver.changed = (id) => {
 					void this.changed(id, 'changed').catch(this._logger.error)
 				}
-				this._dbObserver.removed = (id: string) => {
+				this._dbObserver.removed = (id) => {
 					void this.changed(id, 'removed').catch(this._logger.error)
 				}
 

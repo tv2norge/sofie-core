@@ -12,6 +12,7 @@ import { faAngleRight, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { AdLibActionEditor } from './actionEditors/AdLibActionEditor'
 import { DeviceActions } from '@sofie-automation/shared-lib/dist/core/model/ShowStyle'
 import { catchError } from '../../../../../../lib/lib'
+import { DeviceActions } from '@sofie-automation/shared-lib/dist/core/model/ShowStyle'
 
 interface IProps {
 	action: SomeAction

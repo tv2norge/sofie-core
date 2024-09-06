@@ -26,9 +26,9 @@ import { BucketsTopic } from './topics/bucketsTopic'
 import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler'
 import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler'
 import { BucketsHandler } from './collections/bucketsHandler'
-import { ActivePiecesTopic } from './topics/activePiecesTopic'
 import { PieceContentStatusesHandler } from './collections/pieceContentStatusesHandler'
 import { PackagesTopic } from './topics/packagesTopic'
+import { ActivePiecesTopic } from './topics/activePiecesTopic'
 
 export class LiveStatusServer {
 	_logger: Logger
@@ -107,6 +107,7 @@ export class LiveStatusServer {
 		await playlistHandler.subscribe(partInstancesHandler)
 		await playlistHandler.subscribe(pieceInstancesHandler)
 		await playlistHandler.subscribe(pieceContentStatusesHandler)
+
 		await rundownHandler.subscribe(showStyleBaseHandler)
 		await partInstancesHandler.subscribe(rundownHandler)
 		await partInstancesHandler.subscribe(segmentHandler)
@@ -115,6 +116,8 @@ export class LiveStatusServer {
 		await partInstancesHandler.subscribe(globalAdLibActionsHandler)
 		await partInstancesHandler.subscribe(adLibsHandler)
 		await partInstancesHandler.subscribe(globalAdLibsHandler)
+		await showStyleBaseHandler.subscribe(pieceInstancesHandler)
+		await partInstancesHandler.subscribe(pieceInstancesHandler)
 
 		// add observers for websocket topic updates
 		await studioHandler.subscribe(studioTopic)
@@ -135,6 +138,8 @@ export class LiveStatusServer {
 		await partsHandler.subscribe(segmentsTopic)
 
 		await showStyleBaseHandler.subscribe(adLibsTopic)
+		await partsHandler.subscribe(adLibsTopic)
+		await segmentsHandler.subscribe(adLibsTopic)
 		await playlistHandler.subscribe(adLibsTopic)
 		await adLibActionsHandler.subscribe(adLibsTopic)
 		await adLibsHandler.subscribe(adLibsTopic)
