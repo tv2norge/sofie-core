@@ -67,7 +67,7 @@ meteorPublish(PubSub.rundownsForDevice, async function (deviceId, includeMetadat
 			privateData: 0,
 		},
 	}
-	if (includeMetadata) delete modifier.fields?.metaData
+	if (includeMetadata) delete modifier.fields?.publicData
 
 	if (NoSecurityReadAccess.any() || (await StudioReadAccess.studioContent(selector.studioId, resolvedCred))) {
 		return Rundowns.findWithCursor(selector, modifier)
@@ -122,7 +122,7 @@ meteorPublish(PubSub.segments, async function (selector, includeMetadata, token)
 			privateData: 0,
 		},
 	}
-	if (includeMetadata) delete modifier.fields?.metaData
+	if (includeMetadata) delete modifier.fields?.publicData
 	if (
 		NoSecurityReadAccess.any() ||
 		(selector.rundownId &&
@@ -147,9 +147,10 @@ meteorPublish(PubSub.parts, async function (rundownIds, includeMetadata, token) 
 	const modifier: FindOptions<DBPart> = {
 		fields: {
 			privateData: 0,
+			publicData: 0,
 		},
 	}
-	if (includeMetadata) delete modifier.fields?.metaData
+	if (includeMetadata) delete modifier.fields?.publicData
 
 	const selector: MongoQuery<DBPart> = {
 		rundownId: { $in: rundownIds },
@@ -180,11 +181,11 @@ meteorPublish(PubSub.partInstances, async function (rundownIds, playlistActivati
 	const modifier: FindOptions<DBPartInstance> = {
 		fields: {
 			// @ts-expect-error Mongo typings aren't clever enough yet
-			'part.metaData': 0,
+			'part.publicData': 0,
 			'part.privateData': 0,
 		},
 	}
-	if (includeMetadata) delete modifier.fields?.['part.metaData']
+	if (includeMetadata) delete modifier.fields?.['part.publicData']
 
 	const selector: MongoQuery<DBPartInstance> = {
 		rundownId: { $in: rundownIds },
@@ -278,9 +279,10 @@ meteorPublish(PubSub.adLibPieces, async function (selector, includeMetadata, tok
 		fields: {
 			privateData: 0,
 			timelineObjectsString: 0,
+			publicData: 0,
 		},
 	}
-	if (includeMetadata) delete modifier.fields?.metaData
+	if (includeMetadata) delete modifier.fields?.publicData
 	if (
 		NoSecurityReadAccess.any() ||
 		(await RundownReadAccess.rundownContent(selector.rundownId, { userId: this.userId, token }))
