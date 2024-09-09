@@ -58,7 +58,7 @@ export class PartInstancesHandler
 		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
 		const previousPartInstance = this._currentPlaylist?.previousPartInfo?.partInstanceId
 			? collection.findOne(this._currentPlaylist.previousPartInfo.partInstanceId)
-			: null
+			: undefined
 		const currentPartInstance = this._currentPlaylist?.currentPartInfo?.partInstanceId
 			? collection.findOne(this._currentPlaylist.currentPartInfo.partInstanceId)
 			: null
@@ -75,11 +75,10 @@ export class PartInstancesHandler
 		) as DBPartInstance
 
 		let hasAnythingChanged = false
-		if (previousPartInstance === undefined || currentPartInstance === undefined || nextPartInstance === undefined)
-			return false // aborting because of inconsistent data; let's wait for another call to this function
+		if (currentPartInstance === undefined || nextPartInstance === undefined) return false // aborting because of inconsistent data; let's wait for another call to this function
 
 		if (previousPartInstance !== this._collectionData.previous) {
-			this._collectionData.previous = previousPartInstance ?? undefined
+			this._collectionData.previous = previousPartInstance
 			hasAnythingChanged = true
 		}
 		if (currentPartInstance !== this._collectionData.current) {
