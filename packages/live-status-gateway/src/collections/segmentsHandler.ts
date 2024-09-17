@@ -7,7 +7,10 @@ import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collect
 
 const THROTTLE_PERIOD_MS = 200
 
-export class SegmentsHandler extends CollectionBase<DBSegment[]> implements Collection<DBSegment[]> {
+export class SegmentsHandler
+	extends CollectionBase<DBSegment[], undefined, CollectionName.Segments>
+	implements Collection<DBSegment[]>
+{
 	public observerName: string
 	private throttledNotify: (data: DBSegment[]) => Promise<void>
 

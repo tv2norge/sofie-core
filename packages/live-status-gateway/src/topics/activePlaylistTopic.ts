@@ -161,9 +161,7 @@ export class ActivePlaylistTopic
 					publicData: undefined,
 			  })
 
-		for (const subscriber of subscribers) {
-			this.sendMessage(subscriber, message)
-		}
+		this.sendMessage(subscribers, message)
 	}
 
 	private isDataInconsistent() {
@@ -202,7 +200,7 @@ export class ActivePlaylistTopic
 			}
 			case ShowStyleBaseHandler.name: {
 				const showStyleBaseExt = data ? (data as ShowStyleBaseExt) : undefined
-				this._logger.info(`${this._name} received showStyleBase update from ${source}`)
+				this.logUpdateReceived('showStyleBase', source)
 				this._showStyleBaseExt = showStyleBaseExt
 				hasAnythingChanged = true
 				break

@@ -1,7 +1,6 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
 import { CollectionBase, Collection, CollectionObserver } from '../wsHandler'
-import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { PartInstancesHandler, SelectedPartInstances } from './partInstancesHandler'
 import { RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
@@ -10,23 +9,22 @@ import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isSha
 import { SegmentsHandler } from './segmentsHandler'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { PlaylistHandler } from './playlistHandler'
+import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 
 export class SegmentHandler
-	extends CollectionBase<DBSegment>
+	extends CollectionBase<DBSegment, CorelibPubSub.segments, CollectionName.Segments>
 	implements Collection<DBSegment>, CollectionObserver<SelectedPartInstances>, CollectionObserver<DBRundownPlaylist>
 {
 	public observerName: string
-	private _core: CoreConnection
 	private _currentSegmentId: SegmentId | undefined
 	private _rundownIds: RundownId[] = []
 
 	constructor(logger: Logger, coreHandler: CoreHandler, private _segmentsHandler: SegmentsHandler) {
-		super(SegmentHandler.name, CollectionName.Segments, 'segments', logger, coreHandler)
-		this._core = coreHandler.coreConnection
+		super(SegmentHandler.name, CollectionName.Segments, CorelibPubSub.segments, logger, coreHandler)
 		this.observerName = this._name
 	}
 
-	async changed(id: string, changeType: string): Promise<void> {
+	async changed(id: SegmentId, changeType: string): Promise<void> {
 		this.logDocumentChange(id, changeType)
 		if (!this._collectionName) return
 		const collection = this._core.getCollection<DBSegment>(this._collectionName)
@@ -67,18 +65,29 @@ export class SegmentHandler
 			if (this._subscriptionId) this._coreHandler.unsubscribe(this._subscriptionId)
 			if (this._dbObserver) this._dbObserver.stop()
 			if (this._rundownIds.length) {
-				this._subscriptionId = await this._coreHandler.setupSubscription(this._publicationName, {
-					rundownId: { $in: this._rundownIds },
-					isHidden: { $ne: true },
-				})
+				this._subscriptionId = await this._coreHandler.setupSubscription(
+					this._publicationName,
+					{
+						rundownId: { $in: this._rundownIds },
+						isHidden: { $ne: true },
+					},
+					true
+				)
+				// this._subscriptionId = await this._coreHandler.setupSubscription(
+				// 	this._publicationName,
+				// 	this._rundownIds,
+				// 	{
+				// 		omitHidden: true,
+				// 	}
+				// ) // in R51
 				this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
-				this._dbObserver.added = (id: string) => {
+				this._dbObserver.added = (id) => {
 					void this.changed(id, 'added').catch(this._logger.error)
 				}
-				this._dbObserver.changed = (id: string) => {
+				this._dbObserver.changed = (id) => {
 					void this.changed(id, 'changed').catch(this._logger.error)
 				}
-				this._dbObserver.removed = (id: string) => {
+				this._dbObserver.removed = (id) => {
 					void this.changed(id, 'removed').catch(this._logger.error)
 				}
 			}

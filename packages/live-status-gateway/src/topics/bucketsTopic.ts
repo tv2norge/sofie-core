@@ -28,7 +28,7 @@ export interface BucketsStatus {
 	buckets: BucketStatus[]
 }
 
-interface BucketAdLibStatus extends AdLibStatus {
+interface BucketAdLibStatus extends Omit<AdLibStatus, 'partId' | 'segmentId'> {
 	externalId: string
 }
 

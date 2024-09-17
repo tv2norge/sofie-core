@@ -1,21 +1,29 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
 import { CollectionBase, Collection } from '../wsHandler'
-import { CoreConnection } from '@sofie-automation/server-core-integration'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import { BucketAdLib } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibPiece'
+import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
+import { BucketAdLibId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
-export class BucketAdLibsHandler extends CollectionBase<BucketAdLib[]> implements Collection<BucketAdLib[]> {
+export class BucketAdLibsHandler
+	extends CollectionBase<BucketAdLib[], CorelibPubSub.bucketAdLibPieces, CollectionName.BucketAdLibPieces>
+	implements Collection<BucketAdLib[]>
+{
 	public observerName: string
-	private _core: CoreConnection
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
-		super(BucketAdLibsHandler.name, CollectionName.BucketAdLibPieces, 'bucketAdLibPieces', logger, coreHandler)
-		this._core = coreHandler.coreConnection
+		super(
+			BucketAdLibsHandler.name,
+			CollectionName.BucketAdLibPieces,
+			CorelibPubSub.bucketAdLibPieces,
+			logger,
+			coreHandler
+		)
 		this.observerName = this._name
 	}
 
-	async changed(id: string, changeType: string): Promise<void> {
+	async changed(id: BucketAdLibId, changeType: string): Promise<void> {
 		this.logDocumentChange(id, changeType)
 		if (!this._collectionName) return
 		const collection = this._core.getCollection<BucketAdLib>(this._collectionName)
@@ -39,13 +47,13 @@ export class BucketAdLibsHandler extends CollectionBase<BucketAdLib[]> implement
 			if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
 			const bucketAdLibs = collection.find(undefined)
 			this._collectionData = bucketAdLibs
-			this._dbObserver.added = (id: string) => {
+			this._dbObserver.added = (id) => {
 				void this.changed(id, 'added').catch(this._logger.error)
 			}
-			this._dbObserver.changed = (id: string) => {
+			this._dbObserver.changed = (id) => {
 				void this.changed(id, 'changed').catch(this._logger.error)
 			}
-			this._dbObserver.removed = (id: string) => {
+			this._dbObserver.removed = (id) => {
 				void this.changed(id, 'removed').catch(this._logger.error)
 			}
 		}
