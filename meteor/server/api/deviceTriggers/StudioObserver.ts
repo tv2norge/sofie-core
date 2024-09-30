@@ -17,11 +17,14 @@ import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowSt
 import { logger } from '../../logging'
 import { observerChain } from '../../publications/lib/observerChain'
 import { ContentCache } from './reactiveContentCache'
+import { ContentCache as PieceInstancesContentCache } from './reactiveContentCacheForPieceInstances'
 import { RundownContentObserver } from './RundownContentObserver'
 import { RundownsObserver } from './RundownsObserver'
 import { RundownPlaylists, Rundowns, ShowStyleBases } from '../../collections'
+import { PieceInstancesObserver } from './PieceInstancesObserver'
 
-type ChangedHandler = (showStyleBaseId: ShowStyleBaseId, cache: ContentCache) => () => void
+type RundownContentChangeHandler = (showStyleBaseId: ShowStyleBaseId, cache: ContentCache) => () => void
+type PieceInstancesChangeHandler = (showStyleBaseId: ShowStyleBaseId, cache: PieceInstancesContentCache) => () => void
 
 const REACTIVITY_DEBOUNCE = 20
 
@@ -53,16 +56,23 @@ export class StudioObserver extends EventEmitter {
 	#playlistInStudioLiveQuery: Meteor.LiveQueryHandle
 	#showStyleOfRundownLiveQuery: Meteor.LiveQueryHandle | undefined
 	#rundownsLiveQuery: Meteor.LiveQueryHandle | undefined
+	#pieceInstancesLiveQuery: Meteor.LiveQueryHandle | undefined
 	activePlaylistId: RundownPlaylistId | undefined
 	activationId: RundownPlaylistActivationId | undefined
 	currentRundownId: RundownId | undefined
 	showStyleBaseId: ShowStyleBaseId | undefined
 
-	#changed: ChangedHandler
+	#rundownContentChanged: RundownContentChangeHandler
+	#pieceInstancesChanged: PieceInstancesChangeHandler
 
-	constructor(studioId: StudioId, onChanged: ChangedHandler) {
+	constructor(
+		studioId: StudioId,
+		onRundownContentChanged: RundownContentChangeHandler,
+		pieceInstancesChanged: PieceInstancesChangeHandler
+	) {
 		super()
-		this.#changed = onChanged
+		this.#rundownContentChanged = onRundownContentChanged
+		this.#pieceInstancesChanged = pieceInstancesChanged
 		this.#playlistInStudioLiveQuery = observerChain()
 			.next(
 				'activePlaylist',
@@ -157,6 +167,9 @@ export class StudioObserver extends EventEmitter {
 					this.#rundownsLiveQuery?.stop()
 					this.#rundownsLiveQuery = undefined
 					this.showStyleBaseId = showStyleBaseId
+
+					this.#pieceInstancesLiveQuery?.stop()
+					this.#pieceInstancesLiveQuery = undefined
 					return
 				}
 
@@ -164,6 +177,9 @@ export class StudioObserver extends EventEmitter {
 
 				this.#rundownsLiveQuery?.stop()
 				this.#rundownsLiveQuery = undefined
+
+				this.#pieceInstancesLiveQuery?.stop()
+				this.#pieceInstancesLiveQuery = undefined
 
 				const activePlaylistId = this.activePlaylistId
 				this.showStyleBaseId = showStyleBaseId
@@ -173,7 +189,7 @@ export class StudioObserver extends EventEmitter {
 				this.#rundownsLiveQuery = new RundownsObserver(activePlaylistId, (rundownIds) => {
 					logger.silly(`Creating new RundownContentObserver`)
 					const obs1 = new RundownContentObserver(activePlaylistId, showStyleBaseId, rundownIds, (cache) => {
-						cleanupChanges = this.#changed(showStyleBaseId, cache)
+						cleanupChanges = this.#rundownContentChanged(showStyleBaseId, cache)
 
 						return () => {
 							void 0
@@ -185,6 +201,18 @@ export class StudioObserver extends EventEmitter {
 						cleanupChanges?.()
 					}
 				})
+
+				this.#pieceInstancesLiveQuery = new PieceInstancesObserver(
+					this.activationId,
+					showStyleBaseId,
+					(cache) => {
+						const cleanupChanges = this.#pieceInstancesChanged(showStyleBaseId, cache)
+
+						return () => {
+							cleanupChanges?.()
+						}
+					}
+				)
 			}
 		),
 		REACTIVITY_DEBOUNCE

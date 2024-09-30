@@ -22,14 +22,19 @@ import { DummyReactiveVar, protectString } from '../../../lib/lib'
 import { StudioActionManager, StudioActionManagers } from './StudioActionManagers'
 import { DeviceTriggerMountedActionAdlibsPreview, DeviceTriggerMountedActions } from './observer'
 import { ContentCache } from './reactiveContentCache'
+import { ContentCache as PieceInstancesContentCache } from './reactiveContentCacheForPieceInstances'
 import { logger } from '../../logging'
 import { SomeAction, SomeBlueprintTrigger } from '@sofie-automation/blueprints-integration'
 import { DeviceActions } from '@sofie-automation/shared-lib/dist/core/model/ShowStyle'
 
+import { TagsService } from './TagsService'
+
 export class StudioDeviceTriggerManager {
 	#lastShowStyleBaseId: ShowStyleBaseId | null = null
 
-	constructor(public studioId: StudioId) {
+	lastCache: ContentCache | undefined
+
+	constructor(public studioId: StudioId, protected tagsService: TagsService) {
 		if (StudioActionManagers.get(studioId)) {
 			logger.error(`A StudioActionManager for "${studioId}" already exists`)
 			return
@@ -40,6 +45,7 @@ export class StudioDeviceTriggerManager {
 
 	updateTriggers(cache: ContentCache, showStyleBaseId: ShowStyleBaseId): void {
 		const studioId = this.studioId
+		this.lastCache = cache
 		this.#lastShowStyleBaseId = showStyleBaseId
 
 		const rundownPlaylist = cache.RundownPlaylists.findOne({
@@ -75,6 +81,8 @@ export class StudioDeviceTriggerManager {
 
 		const upsertedDeviceTriggerMountedActionIds: DeviceTriggerMountedActionId[] = []
 		const touchedActionIds: DeviceActionId[] = []
+
+		this.tagsService.clearObservedTags()
 
 		for (const rawTriggeredAction of allTriggeredActions) {
 			const triggeredAction = convertDocument(rawTriggeredAction)
@@ -155,6 +163,8 @@ export class StudioDeviceTriggerManager {
 							sourceLayerType: undefined,
 							sourceLayerName: undefined,
 							styleClassNames: triggeredAction.styleClassNames,
+							isCurrent: undefined,
+							isNext: undefined,
 						}),
 					})
 
@@ -166,6 +176,8 @@ export class StudioDeviceTriggerManager {
 						const adLibPreviewId = protectString<PreviewWrappedAdLibId>(
 							`${triggeredAction._id}_${studioId}_${key}_${adLib._id}`
 						)
+						this.tagsService.observeTallyTags(adLib)
+						const { isCurrent, isNext } = this.tagsService.getTallyStateFromTags(adLib)
 						DeviceTriggerMountedActionAdlibsPreview.upsert(adLibPreviewId, {
 							$set: literal<PreviewWrappedAdLib>({
 								...adLib,
@@ -184,6 +196,8 @@ export class StudioDeviceTriggerManager {
 									  }
 									: undefined,
 								styleClassNames: triggeredAction.styleClassNames,
+								isCurrent,
+								isNext,
 							}),
 						})
 
@@ -209,6 +223,18 @@ export class StudioDeviceTriggerManager {
 		})
 
 		actionManager.deleteActionsOtherThan(touchedActionIds)
+	}
+
+	protected updateTriggersFromLastCache(): void {
+		if (!this.lastCache || !this.#lastShowStyleBaseId) return
+		this.updateTriggers(this.lastCache, this.#lastShowStyleBaseId)
+	}
+
+	updatePieceInstances(cache: PieceInstancesContentCache, showStyleBaseId: ShowStyleBaseId): void {
+		const shouldUpdateTriggers = this.tagsService.updatePieceInstances(cache, showStyleBaseId)
+		if (shouldUpdateTriggers) {
+			this.updateTriggersFromLastCache()
+		}
 	}
 
 	clearTriggers(): void {
