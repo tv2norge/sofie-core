@@ -4,18 +4,18 @@ import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protected
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { literal } from '@sofie-automation/shared-lib/dist/lib/lib'
-import { WebSocketTopicBase, WebSocketTopic, CollectionObserver } from '../wsHandler'
-import { SelectedPartInstances, PartInstancesHandler } from '../collections/partInstancesHandler'
-import { PlaylistHandler } from '../collections/playlistHandler'
-import { ShowStyleBaseExt, ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
+import { WebSocketTopicBase, WebSocketTopic, PickArr } from '../wsHandler'
+import { SelectedPartInstances } from '../collections/partInstancesHandler'
+import { ShowStyleBaseExt } from '../collections/showStyleBaseHandler'
 import { CurrentSegmentTiming, calculateCurrentSegmentTiming } from './helpers/segmentTiming'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { PartsHandler } from '../collections/partsHandler'
 import _ = require('underscore')
 import { PartTiming, calculateCurrentPartTiming } from './helpers/partTiming'
 import { CurrentSegmentPart, getCurrentSegmentParts } from './helpers/segmentParts'
-import { SelectedPieceInstances, PieceInstancesHandler, PieceInstanceMin } from '../collections/pieceInstancesHandler'
+import { SelectedPieceInstances, PieceInstanceMin } from '../collections/pieceInstancesHandler'
 import { PieceStatus, toPieceStatus } from './helpers/pieceStatus'
+import { CollectionHandlers } from '../liveStatusServer'
+import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isShallowEqual'
 
 const THROTTLE_PERIOD_MS = 100
 
@@ -49,18 +49,26 @@ export interface ActivePlaylistStatus {
 	publicData: unknown
 }
 
-export class ActivePlaylistTopic
-	extends WebSocketTopicBase
-	implements
-		WebSocketTopic,
-		CollectionObserver<DBRundownPlaylist>,
-		CollectionObserver<ShowStyleBaseExt>,
-		CollectionObserver<SelectedPartInstances>,
-		CollectionObserver<DBPart[]>,
-		CollectionObserver<SelectedPieceInstances>
-{
+const PLAYLIST_KEYS = [
+	'_id',
+	'activationId',
+	'name',
+	'rundownIdsInOrder',
+	'publicData',
+	'currentPartInfo',
+	'nextPartInfo',
+] as const
+type Playlist = PickArr<DBRundownPlaylist, typeof PLAYLIST_KEYS>
+
+const PART_INSTANCES_KEYS = ['current', 'next', 'inCurrentSegment', 'firstInSegmentPlayout'] as const
+type PartInstances = PickArr<SelectedPartInstances, typeof PART_INSTANCES_KEYS>
+
+const PIECE_INSTANCES_KEYS = ['currentPartInstance', 'nextPartInstance'] as const
+type PieceInstances = PickArr<SelectedPieceInstances, typeof PIECE_INSTANCES_KEYS>
+
+export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
 	public observerName = ActivePlaylistTopic.name
-	private _activePlaylist: DBRundownPlaylist | undefined
+	private _activePlaylist: Playlist | undefined
 	private _currentPartInstance: DBPartInstance | undefined
 	private _nextPartInstance: DBPartInstance | undefined
 	private _firstInstanceInSegmentPlayout: DBPartInstance | undefined
@@ -69,24 +77,21 @@ export class ActivePlaylistTopic
 	private _pieceInstancesInCurrentPartInstance: PieceInstanceMin[] | undefined
 	private _pieceInstancesInNextPartInstance: PieceInstanceMin[] | undefined
 	private _showStyleBaseExt: ShowStyleBaseExt | undefined
-	private throttledSendStatusToAll: () => void
 
-	constructor(logger: Logger) {
-		super(ActivePlaylistTopic.name, logger)
-		this.throttledSendStatusToAll = _.throttle(this.sendStatusToAll.bind(this), THROTTLE_PERIOD_MS, {
-			leading: false,
-			trailing: true,
-		})
-	}
+	constructor(logger: Logger, handlers: CollectionHandlers) {
+		super(ActivePlaylistTopic.name, logger, THROTTLE_PERIOD_MS)
 
-	addSubscriber(ws: WebSocket): void {
-		super.addSubscriber(ws)
-		this.sendStatus([ws])
+		handlers.playlistHandler.subscribe(this.onPlaylistUpdate, PLAYLIST_KEYS)
+		handlers.partsHandler.subscribe(this.onPartsUpdate)
+		handlers.partInstancesHandler.subscribe(this.onPartInstancesUpdate, PART_INSTANCES_KEYS)
+		handlers.pieceInstancesHandler.subscribe(this.onPieceInstancesUpdate, PIECE_INSTANCES_KEYS)
+		handlers.showStyleBaseHandler.subscribe(this.onShowStyleBaseUpdate)
 	}
 
 	sendStatus(subscribers: Iterable<WebSocket>): void {
 		if (this.isDataInconsistent()) {
 			// data is inconsistent, let's wait
+			this._logger.debug('Encountered inconsistent data.')
 			return
 		}
 
@@ -175,79 +180,54 @@ export class ActivePlaylistTopic
 		)
 	}
 
-	async update(
-		source: string,
-		data:
-			| DBRundownPlaylist
-			| ShowStyleBaseExt
-			| SelectedPartInstances
-			| DBPart[]
-			| SelectedPieceInstances
-			| undefined
-	): Promise<void> {
-		let hasAnythingChanged = false
-		switch (source) {
-			case PlaylistHandler.name: {
-				const rundownPlaylist = data ? (data as DBRundownPlaylist) : undefined
-				this.logUpdateReceived(
-					'playlist',
-					source,
-					`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
-				)
-				this._activePlaylist = unprotectString(rundownPlaylist?.activationId) ? rundownPlaylist : undefined
-				hasAnythingChanged = true
-				break
-			}
-			case ShowStyleBaseHandler.name: {
-				const showStyleBaseExt = data ? (data as ShowStyleBaseExt) : undefined
-				this.logUpdateReceived('showStyleBase', source)
-				this._showStyleBaseExt = showStyleBaseExt
-				hasAnythingChanged = true
-				break
-			}
-			case PartInstancesHandler.name: {
-				const partInstances = data as SelectedPartInstances
-				this.logUpdateReceived(
-					'partInstances',
-					source,
-					`${partInstances.inCurrentSegment.length} instances in segment`
-				)
-				this._currentPartInstance = partInstances.current
-				this._nextPartInstance = partInstances.next
-				this._firstInstanceInSegmentPlayout = partInstances.firstInSegmentPlayout
-				this._partInstancesInCurrentSegment = partInstances.inCurrentSegment
-				hasAnythingChanged = true
-				break
-			}
-			case PartsHandler.name: {
-				this._partsBySegmentId = _.groupBy(data as DBPart[], 'segmentId')
-				this.logUpdateReceived('parts', source)
-				hasAnythingChanged = true // TODO: can this be smarter?
-				break
-			}
-			case PieceInstancesHandler.name: {
-				const pieceInstances = data as SelectedPieceInstances
-				this.logUpdateReceived('pieceInstances', source)
-				if (
-					pieceInstances.currentPartInstance !== this._pieceInstancesInCurrentPartInstance ||
-					pieceInstances.nextPartInstance !== this._pieceInstancesInNextPartInstance
-				) {
-					hasAnythingChanged = true
-				}
-				this._pieceInstancesInCurrentPartInstance = pieceInstances.currentPartInstance
-				this._pieceInstancesInNextPartInstance = pieceInstances.nextPartInstance
-				break
-			}
-			default:
-				throw new Error(`${this._name} received unsupported update from ${source}}`)
-		}
+	private onPlaylistUpdate = (rundownPlaylist: Playlist | undefined): void => {
+		this.logUpdateReceived(
+			'playlist',
+			`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
+		)
+		this._activePlaylist = unprotectString(rundownPlaylist?.activationId) ? rundownPlaylist : undefined
 
-		if (hasAnythingChanged) {
+		this.throttledSendStatusToAll()
+	}
+
+	private onPartsUpdate = (parts: DBPart[] | undefined): void => {
+		const previousParts = this._partsBySegmentId
+		this._partsBySegmentId = _.groupBy(parts ?? [], 'segmentId')
+		this.logUpdateReceived('parts')
+
+		const currentSegmentId = unprotectString(this._currentPartInstance?.segmentId)
+		if (
+			currentSegmentId &&
+			!areElementsShallowEqual(previousParts[currentSegmentId], this._partsBySegmentId[currentSegmentId])
+		) {
+			// we have to collect all the parts, but only when those from the current segment change, we should update status
 			this.throttledSendStatusToAll()
 		}
 	}
 
-	private sendStatusToAll() {
-		this.sendStatus(this._subscribers)
+	private onPartInstancesUpdate = (partInstances: PartInstances | undefined): void => {
+		this.logUpdateReceived('partInstances', `${partInstances?.inCurrentSegment.length} instances in segment`)
+
+		if (!partInstances) return
+		this._currentPartInstance = partInstances.current
+		this._nextPartInstance = partInstances.next
+		this._firstInstanceInSegmentPlayout = partInstances.firstInSegmentPlayout
+		this._partInstancesInCurrentSegment = partInstances.inCurrentSegment
+		this.throttledSendStatusToAll()
+	}
+
+	private onPieceInstancesUpdate = (pieceInstances: PieceInstances | undefined): void => {
+		this.logUpdateReceived('pieceInstances')
+		if (!pieceInstances) return
+
+		this._pieceInstancesInCurrentPartInstance = pieceInstances.currentPartInstance
+		this._pieceInstancesInNextPartInstance = pieceInstances.nextPartInstance
+		this.throttledSendStatusToAll()
+	}
+
+	protected onShowStyleBaseUpdate = (showStyleBase: ShowStyleBaseExt | undefined): void => {
+		this.logUpdateReceived('showStyleBase')
+		this._showStyleBaseExt = showStyleBase
+		this.throttledSendStatusToAll()
 	}
 }
