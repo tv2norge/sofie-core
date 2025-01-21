@@ -1,6 +1,6 @@
 import { Logger } from 'winston'
 import { WebSocket } from 'ws'
-import { WebSocketTopicBase, WebSocketTopic, CollectionObserver } from '../wsHandler'
+import { WebSocketTopicBase, WebSocketTopic } from '../wsHandler'
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import _ = require('underscore')
@@ -9,17 +9,15 @@ import {
 	IOutputLayer,
 	ISourceLayer,
 } from '@sofie-automation/blueprints-integration'
-import { ShowStyleBaseHandler } from '../collections/showStyleBaseHandler'
-import { DBShowStyleBase, OutputLayers, SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
+import { ShowStyleBaseExt } from '../collections/showStyleBaseHandler'
+import { OutputLayers, SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
 import { BucketAdLibAction } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibAction'
 import { BucketAdLib } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibPiece'
 import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { interpollateTranslation } from '@sofie-automation/corelib/dist/TranslatableMessage'
 import { AdLibActionType, AdLibStatus } from './adLibsTopic'
-import { BucketAdLibActionsHandler } from '../collections/bucketAdLibActionsHandler'
-import { BucketAdLibsHandler } from '../collections/bucketAdLibsHandler'
-import { BucketsHandler } from '../collections/bucketsHandler'
+import { CollectionHandlers } from '../liveStatusServer'
 
 const THROTTLE_PERIOD_MS = 100
 
@@ -38,34 +36,21 @@ export interface BucketStatus {
 	adLibs: BucketAdLibStatus[]
 }
 
-export class BucketsTopic
-	extends WebSocketTopicBase
-	implements
-		WebSocketTopic,
-		CollectionObserver<Bucket[]>,
-		CollectionObserver<BucketAdLibAction[]>,
-		CollectionObserver<BucketAdLib[]>,
-		CollectionObserver<DBShowStyleBase>
-{
+export class BucketsTopic extends WebSocketTopicBase implements WebSocketTopic {
 	public observerName = BucketsTopic.name
 	private _sourceLayersMap: Map<string, string> = new Map()
 	private _outputLayersMap: Map<string, string> = new Map()
 	private _buckets: Bucket[] = []
 	private _adLibActionsByBucket: Record<string, BucketAdLibAction[]> | undefined
 	private _adLibsByBucket: Record<string, BucketAdLib[]> | undefined
-	private throttledSendStatusToAll: () => void
 
-	constructor(logger: Logger) {
-		super(BucketsTopic.name, logger)
-		this.throttledSendStatusToAll = _.throttle(this.sendStatusToAll.bind(this), THROTTLE_PERIOD_MS, {
-			leading: true,
-			trailing: true,
-		})
-	}
+	constructor(logger: Logger, handlers: CollectionHandlers) {
+		super(BucketsTopic.name, logger, THROTTLE_PERIOD_MS)
 
-	addSubscriber(ws: WebSocket): void {
-		super.addSubscriber(ws)
-		this.sendStatus([ws])
+		handlers.bucketsHandler.subscribe(this.onBucketsUpdate)
+		handlers.bucketAdLibActionsHandler.subscribe(this.onBucketAdLibActionsUpdate)
+		handlers.bucketAdLibsHandler.subscribe(this.onBucketAdLibsUpdate)
+		handlers.showStyleBaseHandler.subscribe(this.onShowStyleBaseUpdate)
 	}
 
 	sendStatus(subscribers: Iterable<WebSocket>): void {
@@ -129,72 +114,55 @@ export class BucketsTopic
 		}
 	}
 
-	async update(
-		source: string,
-		data: Bucket[] | BucketAdLibAction[] | BucketAdLib[] | DBShowStyleBase | undefined
-	): Promise<void> {
-		switch (source) {
-			case BucketsHandler.name: {
-				const buckets = data ? (data as Bucket[]) : []
-				this.logUpdateReceived('buckets', source)
-				this._buckets = buckets
-				break
-			}
-			case BucketAdLibActionsHandler.name: {
-				const adLibActions = data ? (data as BucketAdLibAction[]) : []
-				this.logUpdateReceived('adLibActions', source)
-				this._adLibActionsByBucket = _.groupBy(adLibActions, 'bucketId')
-				break
-			}
-			case BucketAdLibsHandler.name: {
-				const adLibs = data ? (data as BucketAdLib[]) : []
-				this.logUpdateReceived('adLibs', source)
-				this._adLibsByBucket = _.groupBy(adLibs, 'bucketId')
-				break
-			}
-			case ShowStyleBaseHandler.name: {
-				const sourceLayers: SourceLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).sourceLayersWithOverrides).obj
-					: {}
-				const outputLayers: OutputLayers = data
-					? applyAndValidateOverrides((data as DBShowStyleBase).outputLayersWithOverrides).obj
-					: {}
-				this.logUpdateReceived(
-					'showStyleBase',
-					source,
-					`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this.logUpdateReceived(
-					'showStyleBase',
-					source,
-					`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-						(s) => s!.name
-					)}]`
-				)
-				this._sourceLayersMap.clear()
-				this._outputLayersMap.clear()
-				for (const [layerId, sourceLayer] of Object.entries<ISourceLayer | undefined>(sourceLayers)) {
-					if (sourceLayer === undefined || sourceLayer === null) continue
-					this._sourceLayersMap.set(layerId, sourceLayer.name)
-				}
-				for (const [layerId, outputLayer] of Object.entries<IOutputLayer | undefined>(outputLayers)) {
-					if (outputLayer === undefined || outputLayer === null) continue
-					this._outputLayersMap.set(layerId, outputLayer.name)
-				}
-				break
-			}
-			default:
-				throw new Error(`${this._name} received unsupported update from ${source}}`)
+	private onShowStyleBaseUpdate = (showStyleBase: ShowStyleBaseExt | undefined): void => {
+		const sourceLayers: SourceLayers = showStyleBase
+			? applyAndValidateOverrides(showStyleBase.sourceLayersWithOverrides).obj
+			: {}
+		const outputLayers: OutputLayers = showStyleBase
+			? applyAndValidateOverrides(showStyleBase.outputLayersWithOverrides).obj
+			: {}
+		this.logUpdateReceived(
+			'showStyleBase',
+			`sourceLayers [${Object.values<ISourceLayer | undefined>(sourceLayers).map(
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				(s) => s!.name
+			)}]`
+		)
+		this.logUpdateReceived(
+			'showStyleBase',
+			`outputLayers [${Object.values<IOutputLayer | undefined>(outputLayers).map(
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				(s) => s!.name
+			)}]`
+		)
+		this._sourceLayersMap.clear()
+		this._outputLayersMap.clear()
+		for (const [layerId, sourceLayer] of Object.entries<ISourceLayer | undefined>(sourceLayers)) {
+			if (sourceLayer === undefined || sourceLayer === null) continue
+			this._sourceLayersMap.set(layerId, sourceLayer.name)
 		}
-
+		for (const [layerId, outputLayer] of Object.entries<IOutputLayer | undefined>(outputLayers)) {
+			if (outputLayer === undefined || outputLayer === null) continue
+			this._outputLayersMap.set(layerId, outputLayer.name)
+		}
 		this.throttledSendStatusToAll()
 	}
 
-	private sendStatusToAll() {
-		this.sendStatus(this._subscribers)
+	private onBucketsUpdate = (buckets: Bucket[] | undefined): void => {
+		this.logUpdateReceived('buckets')
+		this._buckets = buckets ?? []
+		this.throttledSendStatusToAll()
+	}
+
+	private onBucketAdLibActionsUpdate = (adLibActions: BucketAdLibAction[] | undefined): void => {
+		this.logUpdateReceived('buketAdLibActions')
+		this._adLibActionsByBucket = _.groupBy(adLibActions ?? [], 'bucketId')
+		this.throttledSendStatusToAll()
+	}
+
+	private onBucketAdLibsUpdate = (adLibs: BucketAdLib[] | undefined): void => {
+		this.logUpdateReceived('bucketAdLibs')
+		this._adLibsByBucket = _.groupBy(adLibs ?? [], 'bucketId')
+		this.throttledSendStatusToAll()
 	}
 }

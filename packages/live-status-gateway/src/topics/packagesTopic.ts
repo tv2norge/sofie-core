@@ -1,13 +1,11 @@
 import { Logger } from 'winston'
 import { WebSocket } from 'ws'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { WebSocketTopicBase, WebSocketTopic, CollectionObserver } from '../wsHandler'
-import { PlaylistHandler } from '../collections/playlistHandler'
+import { WebSocketTopicBase, WebSocketTopic, PickArr } from '../wsHandler'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
-import _ = require('underscore')
-import { PieceContentStatusesHandler } from '../collections/pieceContentStatusesHandler'
 import { UIPieceContentStatus } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
 import { PieceStatusCode } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { CollectionHandlers } from '../liveStatusServer'
 
 const THROTTLE_PERIOD_MS = 200
 
@@ -31,26 +29,19 @@ export interface PackagesStatus {
 	packages: PackageStatus[]
 }
 
-export class PackagesTopic
-	extends WebSocketTopicBase
-	implements WebSocketTopic, CollectionObserver<UIPieceContentStatus[]>, CollectionObserver<DBRundownPlaylist>
-{
+const PLAYLIST_KEYS = ['_id', 'activationId'] as const
+type Playlist = PickArr<DBRundownPlaylist, typeof PLAYLIST_KEYS>
+
+export class PackagesTopic extends WebSocketTopicBase implements WebSocketTopic {
 	public observerName = PackagesTopic.name
-	private _activePlaylist: DBRundownPlaylist | undefined
+	private _activePlaylist: Playlist | undefined
 	private _pieceContentStatuses: UIPieceContentStatus[] = []
-	private throttledSendStatusToAll: () => void
 
-	constructor(logger: Logger) {
-		super(PackagesTopic.name, logger)
-		this.throttledSendStatusToAll = _.throttle(this.sendStatusToAll.bind(this), THROTTLE_PERIOD_MS, {
-			leading: true,
-			trailing: true,
-		})
-	}
+	constructor(logger: Logger, handlers: CollectionHandlers) {
+		super(PackagesTopic.name, logger, THROTTLE_PERIOD_MS)
 
-	addSubscriber(ws: WebSocket): void {
-		super.addSubscriber(ws)
-		this.sendStatus([ws])
+		handlers.playlistHandler.subscribe(this.onPlaylistUpdate, PLAYLIST_KEYS)
+		handlers.pieceContentStatusesHandler.subscribe(this.onPieceContentStatusUpdate)
 	}
 
 	sendStatus(subscribers: Iterable<WebSocket>): void {
@@ -74,33 +65,23 @@ export class PackagesTopic
 		}
 	}
 
-	async update(source: string, data: DBRundownPlaylist | UIPieceContentStatus[] | undefined): Promise<void> {
-		let hasAnythingChanged = false
-		switch (source) {
-			case PlaylistHandler.name: {
-				const prevPlaylistId = this._activePlaylist?._id
-				this._activePlaylist = data as DBRundownPlaylist | undefined
-				if (prevPlaylistId !== this._activePlaylist?._id) {
-					hasAnythingChanged = true
-				}
-				this.logUpdateReceived('playlist', source)
-				break
-			}
-			case PieceContentStatusesHandler.name: {
-				this._pieceContentStatuses = data as UIPieceContentStatus[]
-				hasAnythingChanged = true
-				this.logUpdateReceived('pieceContentStatuses', source)
-				break
-			}
-			default:
-				throw new Error(`${this._name} received unsupported update from ${source}}`)
-		}
-		if (hasAnythingChanged) {
+	private onPlaylistUpdate = (rundownPlaylist: Playlist | undefined): void => {
+		this.logUpdateReceived(
+			'playlist',
+			`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
+		)
+		const prevPlaylist = this._activePlaylist
+		this._activePlaylist = rundownPlaylist
+
+		if (prevPlaylist?._id !== this._activePlaylist?._id) {
 			this.throttledSendStatusToAll()
 		}
 	}
 
-	private sendStatusToAll() {
-		this.sendStatus(this._subscribers)
+	private onPieceContentStatusUpdate = (data: UIPieceContentStatus[] | undefined): void => {
+		this.logUpdateReceived('pieceContentStatuses')
+		if (!data) return
+		this._pieceContentStatuses = data
+		this.throttledSendStatusToAll()
 	}
 }

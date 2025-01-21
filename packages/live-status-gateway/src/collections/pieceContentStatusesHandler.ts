@@ -1,49 +1,44 @@
 import { Logger } from 'winston'
 import { CoreHandler } from '../coreHandler'
-import { CollectionBase, Collection, CollectionObserver } from '../wsHandler'
+import { CollectionBase, Collection, PickArr } from '../wsHandler'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import {
-	UIPieceContentStatus,
-	UIPieceContentStatusId,
-} from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
+import { UIPieceContentStatus } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
 import throttleToNextTick from '@sofie-automation/shared-lib/dist/lib/throttleToNextTick'
 import { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
+import { CollectionHandlers } from '../liveStatusServer'
+
+const PLAYLIST_KEYS = ['_id'] as const
+type Playlist = PickArr<DBRundownPlaylist, typeof PLAYLIST_KEYS>
 
 export class PieceContentStatusesHandler
 	extends CollectionBase<UIPieceContentStatus[], CorelibPubSub.uiPieceContentStatuses, 'uiPieceContentStatuses'>
-	implements Collection<UIPieceContentStatus[]>, CollectionObserver<DBRundownPlaylist>
+	implements Collection<UIPieceContentStatus[]>
 {
 	public observerName: string
 	private _currentPlaylistId: RundownPlaylistId | undefined
-	private _subscriptionPending = false
 
 	private _throttledUpdateAndNotify = throttleToNextTick(() => {
-		this.updateAndNotify().catch(this._logger.error)
+		this.updateAndNotify()
 	})
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
-		super(
-			PieceContentStatusesHandler.name,
-			'uiPieceContentStatuses',
-			CorelibPubSub.uiPieceContentStatuses,
-			logger,
-			coreHandler
-		)
+		super('uiPieceContentStatuses', CorelibPubSub.uiPieceContentStatuses, logger, coreHandler)
 		this.observerName = this._name
 	}
 
-	async changed(id: UIPieceContentStatusId, changeType: string): Promise<void> {
-		this.logDocumentChange(id, changeType)
-		if (!this._collectionName || this._subscriptionPending) return
+	init(handlers: CollectionHandlers): void {
+		super.init(handlers)
 
+		handlers.playlistHandler.subscribe(this.onPlaylistUpdated, PLAYLIST_KEYS)
+	}
+
+	changed(): void {
 		this._throttledUpdateAndNotify()
 	}
 
 	private updateCollectionData() {
-		if (!this._collectionName) return
-		const collection = this._core.getCollection<UIPieceContentStatus>(this._collectionName)
-		if (!collection) throw new Error(`collection '${this._collectionName}' not found!`)
+		const collection = this.getCollectionOrFail()
 		this._collectionData = collection.find({})
 	}
 
@@ -51,53 +46,32 @@ export class PieceContentStatusesHandler
 		this._collectionData = []
 	}
 
-	async update(source: string, data: DBRundownPlaylist | undefined): Promise<void> {
+	onPlaylistUpdated = (playlist: Playlist | undefined): void => {
 		this.logUpdateReceived(
 			'playlist',
-			source,
-			`rundownPlaylistId ${data?._id}, active ${data?.activationId ? true : false}`
+			// source,
+			`rundownPlaylistId ${playlist?._id}`
 		)
 		const prevPlaylistId = this._currentPlaylistId
-		this._currentPlaylistId = data?._id
-		if (!this._collectionName) return
+		this._currentPlaylistId = playlist?._id
 
 		if (this._currentPlaylistId) {
 			if (prevPlaylistId !== this._currentPlaylistId) {
-				await new Promise(process.nextTick.bind(this))
-				if (!this._collectionName) return
-				if (!this._publicationName) return
-				if (this._subscriptionId) this._coreHandler.unsubscribe(this._subscriptionId)
-				this._subscriptionPending = true
-				this._subscriptionId = await this._coreHandler.setupSubscription(
-					this._publicationName,
-					this._currentPlaylistId
-				)
-				this._subscriptionPending = false
-				this._dbObserver = this._coreHandler.setupObserver(this._collectionName)
-				this._dbObserver.added = (id) => {
-					void this.changed(id, 'added').catch(this._logger.error)
-				}
-				this._dbObserver.changed = (id) => {
-					void this.changed(id, 'changed').catch(this._logger.error)
-				}
-				this._dbObserver.removed = (id) => {
-					void this.changed(id, 'removed').catch(this._logger.error)
-				}
-
-				await this.updateAndNotify()
+				this.stopSubscription()
+				this.setupSubscription(this._currentPlaylistId)
 			}
 		} else {
-			await this.clearAndNotify()
+			this.clearAndNotify()
 		}
 	}
 
-	private async clearAndNotify() {
+	private clearAndNotify() {
 		this.clearCollectionData()
-		await this.notify(this._collectionData)
+		this.notify(this._collectionData)
 	}
 
-	private async updateAndNotify() {
+	private updateAndNotify() {
 		this.updateCollectionData()
-		await this.notify(this._collectionData)
+		this.notify(this._collectionData)
 	}
 }

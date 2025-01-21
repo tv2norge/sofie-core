@@ -1,13 +1,11 @@
 import { ActivePlaylistStatus, ActivePlaylistTopic } from '../activePlaylistTopic'
-import { makeMockLogger, makeMockSubscriber, makeTestPlaylist, makeTestShowStyleBase } from './utils'
-import { PlaylistHandler } from '../../collections/playlistHandler'
-import { ShowStyleBaseExt, ShowStyleBaseHandler } from '../../collections/showStyleBaseHandler'
-import { PartInstancesHandler, SelectedPartInstances } from '../../collections/partInstancesHandler'
+import { makeMockHandlers, makeMockLogger, makeMockSubscriber, makeTestPlaylist, makeTestShowStyleBase } from './utils'
+import { ShowStyleBaseExt } from '../../collections/showStyleBaseHandler'
+import { SelectedPartInstances } from '../../collections/partInstancesHandler'
 import { protectString, unprotectString, unprotectStringArray } from '@sofie-automation/server-core-integration/dist'
 import { PartialDeep } from 'type-fest'
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
-import { PartsHandler } from '../../collections/partsHandler'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 
 function makeEmptyTestPartInstances(): SelectedPartInstances {
@@ -22,18 +20,19 @@ function makeEmptyTestPartInstances(): SelectedPartInstances {
 
 describe('ActivePlaylistTopic', () => {
 	it('notifies subscribers', async () => {
-		const topic = new ActivePlaylistTopic(makeMockLogger())
+		const handlers = makeMockHandlers()
+		const topic = new ActivePlaylistTopic(makeMockLogger(), handlers)
 		const mockSubscriber = makeMockSubscriber()
 
 		const playlist = makeTestPlaylist()
 		playlist.activationId = protectString('somethingRandom')
-		await topic.update(PlaylistHandler.name, playlist)
+		handlers.playlistHandler.notify(playlist)
 
 		const testShowStyleBase = makeTestShowStyleBase()
-		await topic.update(ShowStyleBaseHandler.name, testShowStyleBase as ShowStyleBaseExt)
+		handlers.showStyleBaseHandler.notify(testShowStyleBase as ShowStyleBaseExt)
 
 		const testPartInstancesMap = makeEmptyTestPartInstances()
-		await topic.update(PartInstancesHandler.name, testPartInstancesMap)
+		handlers.partInstancesHandler.notify(testPartInstancesMap)
 
 		topic.addSubscriber(mockSubscriber)
 
@@ -56,7 +55,8 @@ describe('ActivePlaylistTopic', () => {
 	})
 
 	it('provides segment and part', async () => {
-		const topic = new ActivePlaylistTopic(makeMockLogger())
+		const handlers = makeMockHandlers()
+		const topic = new ActivePlaylistTopic(makeMockLogger(), handlers)
 		const mockSubscriber = makeMockSubscriber()
 
 		const currentPartInstanceId = 'CURRENT_PART_INSTANCE_ID'
@@ -69,10 +69,10 @@ describe('ActivePlaylistTopic', () => {
 			partInstanceId: protectString(currentPartInstanceId),
 			rundownId: playlist.rundownIdsInOrder[0],
 		}
-		await topic.update(PlaylistHandler.name, playlist)
+		handlers.playlistHandler.notify(playlist)
 
 		const testShowStyleBase = makeTestShowStyleBase()
-		await topic.update(ShowStyleBaseHandler.name, testShowStyleBase as ShowStyleBaseExt)
+		handlers.showStyleBaseHandler.notify(testShowStyleBase as ShowStyleBaseExt)
 		const part1: Partial<DBPart> = {
 			_id: protectString('PART_1'),
 			title: 'Test Part',
@@ -96,9 +96,9 @@ describe('ActivePlaylistTopic', () => {
 				}),
 			] as DBPartInstance[],
 		}
-		await topic.update(PartInstancesHandler.name, testPartInstances as SelectedPartInstances)
+		handlers.partInstancesHandler.notify(testPartInstances as SelectedPartInstances)
 
-		await topic.update(PartsHandler.name, [part1] as DBPart[])
+		handlers.partsHandler.notify([part1] as DBPart[])
 
 		topic.addSubscriber(mockSubscriber)
 

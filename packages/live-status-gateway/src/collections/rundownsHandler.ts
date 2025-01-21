@@ -11,23 +11,13 @@ export class RundownsHandler
 	public observerName: string
 
 	constructor(logger: Logger, coreHandler: CoreHandler) {
-		super(RundownsHandler.name, CollectionName.Rundowns, undefined, logger, coreHandler)
+		super(CollectionName.Rundowns, undefined, logger, coreHandler)
 		this.observerName = this._name
 	}
 
-	async setRundowns(rundowns: DBRundown[]): Promise<void> {
+	setRundowns(rundowns: DBRundown[]): void {
 		this.logUpdateReceived('rundowns', rundowns.length)
 		this._collectionData = rundowns
-		await this.notify(this._collectionData)
-	}
-
-	// override notify to implement empty array handling
-	async notify(data: DBRundown[] | undefined): Promise<void> {
-		this.logNotifyingUpdate(this._collectionData?.length)
-		if (data !== undefined) {
-			for (const observer of this._observers) {
-				await observer.update(this._name, data)
-			}
-		}
+		this.notify(this._collectionData)
 	}
 }
