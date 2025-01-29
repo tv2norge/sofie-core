@@ -16,6 +16,7 @@
 	"scripts": {
 		"dev": "vite --port=3005",
 		"build": "tsc -b && vite build",
+		"build:main": "tsc -p tsconfig.app.json --noEmit",
 		"check-types": "tsc -p tsconfig.app.json --noEmit",
 		"watch-types": "run check-types --watch",
 		"preview": "vite preview",
@@ -45,6 +46,7 @@
 		"@sofie-automation/meteor-lib": "1.52.0-in-development",
 		"@sofie-automation/shared-lib": "1.52.0-in-development",
 		"@sofie-automation/sorensen": "^1.4.3",
+		"@testing-library/user-event": "^14.5.2",
 		"@types/sinon": "^10.0.20",
 		"classnames": "^2.5.1",
 		"cubic-spline": "^3.0.3",
@@ -84,6 +86,9 @@
 	},
 	"devDependencies": {
 		"@babel/preset-env": "^7.24.8",
+		"@testing-library/dom": "^10.4.0",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.0.1",
 		"@types/classnames": "^2.3.1",
 		"@types/deep-extend": "^0.6.2",
 		"@types/react": "^18.3.3",
@@ -108,6 +113,6 @@
 		"xml2js": "^0.6.2"
 	},
 	"engines": {
-		"node": ">=18"
+		"node": ">=22.11"
 	}
 }

@@ -1,8 +1,5 @@
-import {
-	DBRundownPlaylist,
-	ForceQuickLoopAutoNext,
-	QuickLoopMarkerType,
-} from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
+import { DBRundownPlaylist, QuickLoopMarkerType } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
+import { ForceQuickLoopAutoNext } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 import { PartInstance, wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
@@ -58,7 +55,6 @@ function makeMockSegment(id: string, rank: number, rundownId: string, timing?: S
 		_id: protectString(id),
 		name: 'mock-segment',
 		externalId: id,
-		externalModified: 0,
 		_rank: rank,
 		rundownId: protectString(rundownId),
 		segmentTiming: timing,

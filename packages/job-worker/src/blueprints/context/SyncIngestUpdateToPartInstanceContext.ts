@@ -22,10 +22,10 @@ import {
 	IBlueprintPieceObjectsSampleKeys,
 	convertPieceInstanceToBlueprints,
 	convertPartInstanceToBlueprints,
+	convertPartialBlueprintMutablePartToCore,
 } from './lib'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
-import { DBStudio } from '@sofie-automation/corelib/dist/dataModel/Studio'
-import { JobContext, ProcessedShowStyleCompound } from '../../jobs'
+import { JobContext, JobStudio, ProcessedShowStyleCompound } from '../../jobs'
 import {
 	PieceTimelineObjectsBlob,
 	serializePieceTimelineObjectsBlob,
@@ -43,7 +43,7 @@ export class SyncIngestUpdateToPartInstanceContext
 	constructor(
 		private readonly _context: JobContext,
 		contextInfo: ContextInfo,
-		studio: ReadonlyDeep<DBStudio>,
+		studio: ReadonlyDeep<JobStudio>,
 		showStyleCompound: ReadonlyDeep<ProcessedShowStyleCompound>,
 		rundown: ReadonlyDeep<DBRundown>,
 		partInstance: PlayoutPartInstanceModel,
@@ -175,7 +175,12 @@ export class SyncIngestUpdateToPartInstanceContext
 			}
 		}
 
-		if (!this.partInstance.updatePartProps(updatePart)) {
+		const playoutUpdatePart = convertPartialBlueprintMutablePartToCore(
+			updatePart,
+			this.showStyleCompound.blueprintId
+		)
+
+		if (!this.partInstance.updatePartProps(playoutUpdatePart)) {
 			throw new Error(`Cannot update PartInstance. Some valid properties must be defined`)
 		}
 

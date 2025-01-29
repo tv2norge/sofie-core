@@ -1,3 +1,4 @@
+import { UserEditingDefinition, UserEditingProperties } from '../userEditing'
 import type { NoteSeverity } from '../lib'
 import type { ITranslatableMessage } from '../translations'
 
@@ -82,6 +83,17 @@ export interface IBlueprintMutatablePart<TPrivateData = unknown, TPublicData = u
 
 	/** MediaObjects that when created/updated, should cause the blueprint to be rerun for the Segment of this Part */
 	hackListenToMediaObjectUpdates?: HackPartMediaObjectSubscription[]
+
+	/**
+	 * User editing definitions for this part
+	 */
+	userEditOperations?: UserEditingDefinition[]
+
+	/**
+	 * Properties that are user editable from the properties panel in the Sofie UI, if the user saves changes to these
+	 * it will trigger a user edit operation of type DefaultUserOperationEditProperties
+	 */
+	userEditProperties?: UserEditingProperties
 }
 
 export interface HackPartMediaObjectSubscription {

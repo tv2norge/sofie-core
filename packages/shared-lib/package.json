@@ -29,7 +29,7 @@
 		"license-validate": "run -T sofie-licensecheck"
 	},
 	"engines": {
-		"node": ">=14.19"
+		"node": ">=22.11"
 	},
 	"files": [
 		"/dist",
@@ -38,8 +38,8 @@
 		"/LICENSE"
 	],
 	"dependencies": {
-		"@mos-connection/model": "v4.2.0-alpha.1",
-		"timeline-state-resolver-types": "9.2.0-nightly-EAV-281-20241127-221356-a4e17ed2c.0",
+		"@mos-connection/model": "v4.2.2",
+		"timeline-state-resolver-types": "9.2.0-nightly-release52-20241219-123204-90290cef1.0",
 		"tslib": "^2.6.2",
 		"type-fest": "^3.13.1"
 	},

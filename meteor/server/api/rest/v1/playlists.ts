@@ -33,7 +33,7 @@ import { QueueNextSegmentResult, StudioJobs } from '@sofie-automation/corelib/di
 import { getCurrentTime } from '../../../lib/lib'
 import { TriggerReloadDataResponse } from '@sofie-automation/meteor-lib/dist/api/userActions'
 import { ServerRundownAPI } from '../../rundown'
-import { triggerWriteAccess } from '../../../security/lib/securityVerify'
+import { triggerWriteAccess } from '../../../security/securityVerify'
 
 class PlaylistsServerAPI implements PlaylistsRestAPI {
 	constructor(private context: ServerAPIContext) {}
@@ -275,7 +275,8 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 		connection: Meteor.Connection,
 		event: string,
 		rundownPlaylistId: RundownPlaylistId,
-		delta: number
+		delta: number,
+		ignoreQuickLoop?: boolean
 	): Promise<ClientAPI.ClientResponse<PartId | null>> {
 		return ServerClientAPI.runUserActionInLogForPlaylistOnWorker(
 			this.context.getMethodContext(connection),
@@ -291,6 +292,7 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 				playlistId: rundownPlaylistId,
 				partDelta: delta,
 				segmentDelta: 0,
+				ignoreQuickLoop,
 			}
 		)
 	}

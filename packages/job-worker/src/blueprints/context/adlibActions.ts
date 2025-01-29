@@ -18,18 +18,19 @@ import {
 import { PartInstanceId, PeripheralDeviceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { ReadonlyDeep } from 'type-fest'
 import { PlayoutModel } from '../../playout/model/PlayoutModel'
-import { UserContextInfo } from './CommonContext'
+import { ContextInfo } from './CommonContext'
 import { ShowStyleUserContext } from './ShowStyleUserContext'
 import { WatchedPackagesHelper } from './watchedPackages'
 import { getCurrentTime } from '../../lib'
 import { JobContext, ProcessedShowStyleCompound } from '../../jobs'
-import { moveNextPart } from '../../playout/moveNextPart'
+import { selectNewPartWithOffsets } from '../../playout/moveNextPart'
 import { ProcessedShowStyleConfig } from '../config'
 import { DatastorePersistenceMode } from '@sofie-automation/shared-lib/dist/core/model/TimelineDatastore'
 import { removeTimelineDatastoreValue, setTimelineDatastoreValue } from '../../playout/datastore'
 import { executePeripheralDeviceAction, listPlayoutDevices } from '../../peripheralDevice'
 import { ActionPartChange, PartAndPieceInstanceActionService } from './services/PartAndPieceInstanceActionService'
-import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
+import { BlueprintQuickLookInfo } from '@sofie-automation/blueprints-integration/dist/context/quickLoopInfo'
+import { setNextPartFromPart } from '../../playout/setNext'
 
 export class DatastoreActionExecutionContext
 	extends ShowStyleUserContext
@@ -38,7 +39,7 @@ export class DatastoreActionExecutionContext
 	protected readonly _context: JobContext
 
 	constructor(
-		contextInfo: UserContextInfo,
+		contextInfo: ContextInfo,
 		context: JobContext,
 		showStyle: ReadonlyDeep<ProcessedShowStyleCompound>,
 		watchedPackages: WatchedPackagesHelper
@@ -72,6 +73,10 @@ export class ActionExecutionContext extends ShowStyleUserContext implements IAct
 	 */
 	public forceRegenerateTimeline = false
 
+	public get quickLoopInfo(): BlueprintQuickLookInfo | null {
+		return this.partAndPieceInstanceService.quickLoopInfo
+	}
+
 	public get currentPartState(): ActionPartChange {
 		return this.partAndPieceInstanceService.currentPartState
 	}
@@ -85,7 +90,7 @@ export class ActionExecutionContext extends ShowStyleUserContext implements IAct
 	}
 
 	constructor(
-		contextInfo: UserContextInfo,
+		contextInfo: ContextInfo,
 		private readonly _context: JobContext,
 		private readonly _playoutModel: PlayoutModel,
 		showStyle: ReadonlyDeep<ProcessedShowStyleCompound>,
@@ -152,8 +157,15 @@ export class ActionExecutionContext extends ShowStyleUserContext implements IAct
 		return this.partAndPieceInstanceService.queuePart(rawPart, rawPieces)
 	}
 
-	async moveNextPart(partDelta: number, segmentDelta: number): Promise<void> {
-		await moveNextPart(this._context, this._playoutModel, partDelta, segmentDelta)
+	async moveNextPart(partDelta: number, segmentDelta: number, ignoreQuickloop?: boolean): Promise<void> {
+		const selectedPart = selectNewPartWithOffsets(
+			this._context,
+			this._playoutModel,
+			partDelta,
+			segmentDelta,
+			ignoreQuickloop
+		)
+		if (selectedPart) await setNextPartFromPart(this._context, this._playoutModel, selectedPart, true)
 	}
 
 	async updatePartInstance(
@@ -194,7 +206,8 @@ export class ActionExecutionContext extends ShowStyleUserContext implements IAct
 	}
 
 	async listRouteSets(): Promise<Record<string, StudioRouteSet>> {
-		return applyAndValidateOverrides(this._context.studio.routeSetsWithOverrides).obj
+		// Discard ReadonlyDeep wrapper
+		return this._context.studio.routeSets as Record<string, StudioRouteSet>
 	}
 
 	async switchRouteSet(routeSetId: string, state: boolean | 'toggle'): Promise<void> {

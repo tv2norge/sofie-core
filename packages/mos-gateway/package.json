@@ -48,7 +48,7 @@
 		"license-validate": "run -T sofie-licensecheck"
 	},
 	"engines": {
-		"node": "^14.19 || ^16.14 || ^18.12"
+		"node": ">=22.11"
 	},
 	"keywords": [
 		"mos",
@@ -65,7 +65,7 @@
 		"production"
 	],
 	"dependencies": {
-		"@mos-connection/connector": "v4.2.0-alpha.1",
+		"@mos-connection/connector": "v4.2.2",
 		"@sofie-automation/server-core-integration": "1.52.0-in-development",
 		"@sofie-automation/shared-lib": "1.52.0-in-development",
 		"tslib": "^2.6.2",

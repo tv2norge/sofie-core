@@ -101,11 +101,15 @@ export function defaultStudio(_id: StudioId): DBStudio {
 		mappingsWithOverrides: wrapDefaultObject({}),
 		supportedShowStyleBase: [],
 		blueprintConfigWithOverrides: wrapDefaultObject({}),
-		settings: {
+		settingsWithOverrides: wrapDefaultObject({
 			frameRate: 25,
 			mediaPreviewsUrl: '',
 			minimumTakeSpan: DEFAULT_MINIMUM_TAKE_SPAN,
-		},
+			allowHold: true,
+			allowPieceDirectPlay: true,
+			enableBuckets: true,
+			enableEvaluationForm: true,
+		}),
 		_rundownVersionHash: '',
 		routeSetsWithOverrides: wrapDefaultObject({}),
 		routeSetExclusivityGroupsWithOverrides: wrapDefaultObject({}),
@@ -113,6 +117,7 @@ export function defaultStudio(_id: StudioId): DBStudio {
 		previewContainerIds: [],
 		thumbnailContainerIds: [],
 		peripheralDeviceSettings: {
+			deviceSettings: wrapDefaultObject({}),
 			playoutDevices: wrapDefaultObject({}),
 			ingestDevices: wrapDefaultObject({}),
 			inputDevices: wrapDefaultObject({}),
@@ -129,7 +134,6 @@ export function defaultSegment(_id: SegmentId, rundownId: RundownId): DBSegment 
 		externalId: unprotectString(_id),
 		rundownId: rundownId,
 		name: 'Default Segment',
-		externalModified: 1,
 	}
 }
 

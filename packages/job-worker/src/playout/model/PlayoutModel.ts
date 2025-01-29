@@ -30,6 +30,7 @@ import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { PlayoutPieceInstanceModel } from './PlayoutPieceInstanceModel'
 import { PieceInstanceWithTimings } from '@sofie-automation/corelib/dist/playout/processAndPrune'
 import { PartCalculatedTimings } from '@sofie-automation/corelib/dist/playout/timings'
+import type { INotificationsModel } from '../../notifications/NotificationsModel'
 
 export type DeferredFunction = (playoutModel: PlayoutModel) => void | Promise<void>
 export type DeferredAfterSaveFunction = (playoutModel: PlayoutModelReadonly) => void | Promise<void>
@@ -167,6 +168,25 @@ export interface PlayoutModelReadonly extends StudioPlayoutModelBaseReadonly {
 	getRundownIds(): RundownId[]
 
 	/**
+	 * Returns any segmentId's that are found between 2 quickloop markers, none will be returned if
+	 * the end is before the start.
+	 * @param start A quickloop marker
+	 * @param end A quickloop marker
+	 */
+	getSegmentsBetweenQuickLoopMarker(start: QuickLoopMarker, end: QuickLoopMarker): SegmentId[]
+
+	/**
+	 * Returns any segmentId's that are found between 2 quickloop markers, none will be returned if
+	 * the end is before the start.
+	 * @param start A quickloop marker
+	 * @param end A quickloop marker
+	 */
+	getPartsBetweenQuickLoopMarker(
+		start: QuickLoopMarker,
+		end: QuickLoopMarker
+	): { parts: PartId[]; segments: SegmentId[] }
+
+	/**
 	 * Search for a PieceInstance in the RundownPlaylist
 	 * @param id Id of the PieceInstance
 	 * @returns The found PieceInstance and its parent PartInstance
@@ -179,7 +199,7 @@ export interface PlayoutModelReadonly extends StudioPlayoutModelBaseReadonly {
 /**
  * A view of a `RundownPlaylist` and its content in a `Studio`
  */
-export interface PlayoutModel extends PlayoutModelReadonly, StudioPlayoutModelBase, BaseModel {
+export interface PlayoutModel extends PlayoutModelReadonly, StudioPlayoutModelBase, BaseModel, INotificationsModel {
 	/**
 	 * Temporary hack for debug logging
 	 */
@@ -247,9 +267,14 @@ export interface PlayoutModel extends PlayoutModelReadonly, StudioPlayoutModelBa
 	cycleSelectedPartInstances(): void
 
 	/**
-	 * Update loop markers anytime something sinificant occurs that could result in entering or exiting the mode.
+	 * Update loop markers anytime something significant occurs that could result in entering or exiting the mode.
 	 */
 	updateQuickLoopState(): void
+
+	/*
+	 * Reset the hold state to a base state
+	 */
+	resetHoldState(): void
 
 	/**
 	 * Set the RundownPlaylist as deactivated
@@ -343,14 +368,6 @@ export interface PlayoutModel extends PlayoutModelReadonly, StudioPlayoutModelBa
 	 * @param marker
 	 */
 	setQuickLoopMarker(type: 'start' | 'end', marker: QuickLoopMarker | null): void
-
-	/**
-	 * Returns any segmentId's that are found between 2 quickloop markers, none will be returned if
-	 * the end is before the start.
-	 * @param start A quickloop marker
-	 * @param end A quickloop marker
-	 */
-	getSegmentsBetweenQuickLoopMarker(start: QuickLoopMarker, end: QuickLoopMarker): SegmentId[]
 
 	calculatePartTimings(
 		fromPartInstance: PlayoutPartInstanceModel | null,

@@ -9,9 +9,7 @@ import { PlayoutPartInstanceModel } from '../playout/model/PlayoutPartInstanceMo
 import { IngestModelReadonly } from './model/IngestModel'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
-import { PartNote, SegmentNote } from '@sofie-automation/corelib/dist/dataModel/Notes'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
-import { literal } from '@sofie-automation/corelib/dist/lib'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
 import { logger } from '../logging'
 import {
@@ -31,7 +29,9 @@ import {
 import { validateAdlibTestingPartInstanceProperties } from '../playout/adlibTesting'
 import { ReadonlyDeep } from 'type-fest'
 import { convertIngestModelToPlayoutRundownWithSegments } from './commit'
+import { convertNoteToNotification } from '../notifications/util'
 import { PlayoutRundownModel } from '../playout/model/PlayoutRundownModel'
+import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 
 type PlayStatus = 'previous' | 'current' | 'next'
 type SyncedInstance = {
@@ -142,15 +142,29 @@ export async function syncChangesToPartInstances(
 				if (!playoutRundownModelForPart)
 					throw new Error(`Internal Error: playoutRundownModelForPart is undefined (it should never be)`)
 
-				const proposedPieceInstances = getPieceInstancesForPart(
-					context,
-					playoutModel,
-					previousPartInstance,
-					playoutRundownModelForPart,
-					part,
-					await piecesThatMayBeActive,
-					existingPartInstance.partInstance._id
-				)
+				// TMP: wrap in try/catch for troubleshooting:
+				let proposedPieceInstances: PieceInstance[] = []
+				try {
+					proposedPieceInstances = getPieceInstancesForPart(
+						context,
+						playoutModel,
+						previousPartInstance,
+						playoutRundownModelForPart,
+						part,
+						await piecesThatMayBeActive,
+						existingPartInstance.partInstance._id
+					)
+				} catch (e) {
+					logger.error(
+						`TROUBLESHOOTING: currentPartInstance: ${JSON.stringify(playoutModel.currentPartInstance)}`
+					)
+					logger.error(`TROUBLESHOOTING: nextPartInstance: ${JSON.stringify(playoutModel.nextPartInstance)}`)
+					logger.error(
+						`TROUBLESHOOTING: previousPartInstance: ${JSON.stringify(playoutModel.previousPartInstance)}`
+					)
+
+					throw e
+				}
 
 				logger.info(`Syncing ingest changes for part: ${partId} (orphaned: ${!!newPart})`)
 
@@ -206,22 +220,17 @@ export async function syncChangesToPartInstances(
 				}
 
 				// Save notes:
-				const newNotes: PartNote[] = []
+				const notificationCategory = `syncIngestUpdateToPartInstance:${existingPartInstance.partInstance._id}`
+				playoutModel.clearAllNotifications(notificationCategory)
 				for (const note of syncContext.notes) {
-					newNotes.push(
-						literal<SegmentNote>({
-							type: note.type,
-							message: note.message,
-							origin: {
-								name: '', // TODO
-							},
-						})
-					)
-				}
-				if (newNotes.length) {
-					// TODO - these dont get shown to the user currently
-					// TODO - old notes from the sync may need to be pruned, or we will end up with duplicates and 'stuck' notes?+
-					existingPartInstance.appendNotes(newNotes)
+					playoutModel.setNotification(notificationCategory, {
+						...convertNoteToNotification(note, [blueprint.blueprintId]),
+						relatedTo: {
+							type: 'partInstance',
+							rundownId: existingPartInstance.partInstance.part.rundownId,
+							partInstanceId: existingPartInstance.partInstance._id,
+						},
+					})
 				}
 
 				// Make sure an adlib-testing part is still labeled correctly. This could happen if the partInstance used any recently updated adlibs

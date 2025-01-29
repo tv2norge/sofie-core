@@ -61,6 +61,7 @@ import { QuickLoopService } from '../services/QuickLoopService'
 import { calculatePartTimings, PartCalculatedTimings } from '@sofie-automation/corelib/dist/playout/timings'
 import { PieceInstanceWithTimings } from '@sofie-automation/corelib/dist/playout/processAndPrune'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
+import { NotificationsModelHelper } from '../../../notifications/NotificationsModelHelper'
 
 export class PlayoutModelReadonlyImpl implements PlayoutModelReadonly {
 	public readonly playlistId: RundownPlaylistId
@@ -239,6 +240,16 @@ export class PlayoutModelReadonlyImpl implements PlayoutModelReadonly {
 		return undefined
 	}
 
+	getSegmentsBetweenQuickLoopMarker(start: QuickLoopMarker, end: QuickLoopMarker): SegmentId[] {
+		return this.quickLoopService.getSegmentsBetweenMarkers(start, end)
+	}
+	getPartsBetweenQuickLoopMarker(
+		start: QuickLoopMarker,
+		end: QuickLoopMarker
+	): { parts: PartId[]; segments: SegmentId[] } {
+		return this.quickLoopService.getPartsBetweenMarkers(start, end)
+	}
+
 	#isMultiGatewayMode: boolean | undefined = undefined
 	public get isMultiGatewayMode(): boolean {
 		if (this.#isMultiGatewayMode === undefined) {
@@ -262,6 +273,7 @@ export class PlayoutModelReadonlyImpl implements PlayoutModelReadonly {
  */
 export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements PlayoutModel, DatabasePersistedModel {
 	readonly #baselineHelper: StudioBaselineHelper
+	readonly #notificationsHelper: NotificationsModelHelper
 
 	#deferredBeforeSaveFunctions: DeferredFunction[] = []
 	#deferredAfterSaveFunctions: DeferredAfterSaveFunction[] = []
@@ -306,6 +318,7 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 		context.trackCache(this)
 
 		this.#baselineHelper = new StudioBaselineHelper(context)
+		this.#notificationsHelper = new NotificationsModelHelper(context, `playout:${playlist._id}`, playlistId)
 	}
 
 	public get displayName(): string {
@@ -490,13 +503,11 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 		this.playlistImpl.nextPartInfo = null
 		this.playlistImpl.lastTakeTime = getCurrentTime()
 
-		if (!this.playlistImpl.holdState || this.playlistImpl.holdState === RundownHoldState.COMPLETE) {
-			this.playlistImpl.holdState = RundownHoldState.NONE
-		} else {
-			this.playlistImpl.holdState = this.playlistImpl.holdState + 1
-		}
-
 		this.#playlistHasChanged = true
+	}
+
+	resetHoldState(): void {
+		this.setHoldState(RundownHoldState.NONE)
 	}
 
 	deactivatePlaylist(): void {
@@ -567,15 +578,38 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 							rundownId: { $in: rundownIds },
 					  })
 					: undefined,
+				allToRemove.length > 0
+					? this.context.directCollections.Notifications.remove({
+							'relatedTo.studioId': this.context.studioId,
+							'relatedTo.rundownId': { $in: rundownIds },
+							'relatedTo.partInstanceId': { $in: allToRemove },
+					  })
+					: undefined,
 			])
 		})
 	}
 
 	removeUntakenPartInstances(): void {
+		const removedPartInstanceIds: PartInstanceId[] = []
+
 		for (const partInstance of this.olderPartInstances) {
 			if (!partInstance.partInstance.isTaken) {
 				this.allPartInstances.set(partInstance.partInstance._id, null)
+				removedPartInstanceIds.push(partInstance.partInstance._id)
 			}
+		}
+
+		// Ensure there are no notifications left for these partInstances
+		if (removedPartInstanceIds.length > 0) {
+			this.deferAfterSave(async (playoutModel) => {
+				const rundownIds = playoutModel.getRundownIds()
+
+				await this.context.directCollections.Notifications.remove({
+					'relatedTo.studioId': this.context.studioId,
+					'relatedTo.rundownId': { $in: rundownIds },
+					'relatedTo.partInstanceId': { $in: removedPartInstanceIds },
+				})
+			})
 		}
 	}
 
@@ -645,8 +679,15 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 			...writePartInstancesAndPieceInstances(this.context, this.allPartInstances),
 			writeAdlibTestingSegments(this.context, this.rundownsImpl),
 			this.#baselineHelper.saveAllToDatabase(),
+			this.#notificationsHelper.saveAllToDatabase(),
 			this.context.saveRouteSetChanges(),
 		])
+
+		// Clean up deleted partInstances, since they have now been deleted by writePartInstancesAndPieceInstances
+		for (const [partInstanceId, partInstance] of this.allPartInstances) {
+			if (partInstance !== null) continue
+			this.allPartInstances.delete(partInstanceId)
+		}
 
 		this.#playlistHasChanged = false
 
@@ -803,8 +844,27 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 		this.#playlistHasChanged = true
 	}
 
-	getSegmentsBetweenQuickLoopMarker(start: QuickLoopMarker, end: QuickLoopMarker): SegmentId[] {
-		return this.quickLoopService.getSegmentsBetweenMarkers(start, end)
+	/** Notifications */
+
+	async getAllNotifications(
+		...args: Parameters<NotificationsModelHelper['getAllNotifications']>
+	): ReturnType<NotificationsModelHelper['getAllNotifications']> {
+		return this.#notificationsHelper.getAllNotifications(...args)
+	}
+	clearNotification(
+		...args: Parameters<NotificationsModelHelper['clearNotification']>
+	): ReturnType<NotificationsModelHelper['clearNotification']> {
+		return this.#notificationsHelper.clearNotification(...args)
+	}
+	setNotification(
+		...args: Parameters<NotificationsModelHelper['setNotification']>
+	): ReturnType<NotificationsModelHelper['setNotification']> {
+		return this.#notificationsHelper.setNotification(...args)
+	}
+	clearAllNotifications(
+		...args: Parameters<NotificationsModelHelper['clearAllNotifications']>
+	): ReturnType<NotificationsModelHelper['clearAllNotifications']> {
+		return this.#notificationsHelper.clearAllNotifications(...args)
 	}
 
 	/** Lifecycle */

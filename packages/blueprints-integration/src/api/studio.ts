@@ -3,10 +3,21 @@ import type { ReadonlyDeep } from 'type-fest'
 import type { BlueprintConfigCoreConfig, BlueprintManifestBase, BlueprintManifestType, IConfigMessage } from './base'
 import type { JSONSchema } from '@sofie-automation/shared-lib/dist/lib/JSONSchemaTypes'
 import type { JSONBlob } from '@sofie-automation/shared-lib/dist/lib/JSONBlob'
-import type { MigrationStepStudio } from '../migrations'
-import type { ICommonContext, IFixUpConfigContext, IStudioBaselineContext, IStudioUserContext } from '../context'
+import type {
+	ICommonContext,
+	IFixUpConfigContext,
+	IStudioBaselineContext,
+	IStudioUserContext,
+	IProcessIngestDataContext,
+} from '../context'
 import type { IBlueprintShowStyleBase } from '../showStyle'
-import type { ExtendedIngestRundown } from '../ingest'
+import type {
+	ExtendedIngestRundown,
+	NrcsIngestChangeDetails,
+	IngestRundown,
+	MutableIngestRundown,
+	UserOperationChange,
+} from '../ingest'
 import type { ExpectedPlayoutItemGeneric, IBlueprintResultRundownPlaylist, IBlueprintRundownDB } from '../documents'
 import type { BlueprintMappings } from '../studio'
 import type { TimelineObjectCoreExt, TSR } from '../timeline'
@@ -15,7 +26,8 @@ import type {
 	StudioRouteSet,
 	StudioRouteSetExclusivityGroup,
 } from '@sofie-automation/shared-lib/dist/core/model/StudioRouteSet'
-import { StudioPackageContainer } from '@sofie-automation/shared-lib/dist/core/model/PackageContainer'
+import type { StudioPackageContainer } from '@sofie-automation/shared-lib/dist/core/model/PackageContainer'
+import type { IStudioSettings } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 
 export interface StudioBlueprintManifest<TRawConfig = IBlueprintConfig, TProcessedConfig = unknown>
 	extends BlueprintManifestBase {
@@ -23,10 +35,6 @@ export interface StudioBlueprintManifest<TRawConfig = IBlueprintConfig, TProcess
 
 	/** A list of config items this blueprint expects to be available on the Studio */
 	studioConfigSchema: JSONBlob<JSONSchema>
-	/** A list of Migration steps related to a Studio
-	 * @deprecated This has been replaced with `validateConfig` and `applyConfig`
-	 */
-	studioMigrations: MigrationStepStudio[]
 
 	/** The config presets exposed by this blueprint */
 	configPresets: Record<string, IStudioConfigPreset<TRawConfig>>
@@ -98,6 +106,17 @@ export interface StudioBlueprintManifest<TRawConfig = IBlueprintConfig, TProcess
 	 * If this method is not defined the config object will be used directly
 	 */
 	blueprintConfigToAPI?: (context: ICommonContext, config: TRawConfig) => object
+
+	/**
+	 * Process an ingest operation, to apply changes to the sofie interpretation of the ingest data
+	 */
+	processIngestData?: (
+		context: IProcessIngestDataContext,
+		mutableIngestRundown: MutableIngestRundown<any, any, any>,
+		nrcsIngestRundown: IngestRundown,
+		previousNrcsIngestRundown: IngestRundown | undefined,
+		changes: NrcsIngestChangeDetails | UserOperationChange
+	) => Promise<void>
 }
 
 export interface BlueprintResultStudioBaseline {
@@ -125,6 +144,8 @@ export interface BlueprintResultApplyStudioConfig {
 	/** Playout Mappings */
 	mappings: BlueprintMappings
 
+	/** Parent device settings */
+	parentDevices: Record<string, BlueprintParentDeviceSettings>
 	/** Playout-gateway subdevices */
 	playoutDevices: Record<string, TSR.DeviceOptionsAny>
 	/** Ingest-gateway subdevices, the types here depend on the gateway you use */
@@ -137,6 +158,16 @@ export interface BlueprintResultApplyStudioConfig {
 	routeSetExclusivityGroups?: Record<string, StudioRouteSetExclusivityGroup>
 	/** Package Containers */
 	packageContainers?: Record<string, StudioPackageContainer>
+
+	studioSettings?: IStudioSettings
+}
+export interface BlueprintParentDeviceSettings {
+	/**
+	 * User friendly name for the device
+	 */
+	name: string
+
+	options: Record<string, any>
 }
 
 export interface IStudioConfigPreset<TConfig = IBlueprintConfig> {

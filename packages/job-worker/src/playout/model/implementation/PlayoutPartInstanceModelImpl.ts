@@ -14,21 +14,19 @@ import {
 	calculatePartExpectedDurationWithTransition,
 	PartCalculatedTimings,
 } from '@sofie-automation/corelib/dist/playout/timings'
-import { PartNote } from '@sofie-automation/corelib/dist/dataModel/Notes'
+import { IBlueprintPieceType, PieceLifespan, Time } from '@sofie-automation/blueprints-integration'
 import {
-	IBlueprintMutatablePart,
-	IBlueprintPieceType,
-	PieceLifespan,
-	Time,
-} from '@sofie-automation/blueprints-integration'
-import { PlayoutPartInstanceModel, PlayoutPartInstanceModelSnapshot } from '../PlayoutPartInstanceModel'
+	PlayoutMutatablePart,
+	PlayoutPartInstanceModel,
+	PlayoutPartInstanceModelSnapshot,
+} from '../PlayoutPartInstanceModel'
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { PlayoutPieceInstanceModel } from '../PlayoutPieceInstanceModel'
 import { PlayoutPieceInstanceModelImpl } from './PlayoutPieceInstanceModelImpl'
 import { EmptyPieceTimelineObjectsBlob } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import _ = require('underscore')
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { IBlueprintMutatablePartSampleKeys } from '../../../blueprints/context/lib'
+import { PlayoutMutatablePartSampleKeys } from '../../../blueprints/context/lib'
 import { QuickLoopService } from '../services/QuickLoopService'
 
 /**
@@ -213,10 +211,6 @@ export class PlayoutPartInstanceModelImpl implements PlayoutPartInstanceModel {
 				this.pieceInstancesImpl.set(pieceInstanceId, null)
 			}
 		}
-	}
-
-	appendNotes(notes: PartNote[]): void {
-		this.#setPartValue('notes', [...(this.partInstanceImpl.part.notes ?? []), ...clone(notes)])
 	}
 
 	blockTakeUntil(timestamp: Time | null): void {
@@ -538,21 +532,24 @@ export class PlayoutPartInstanceModelImpl implements PlayoutPartInstanceModel {
 		this.#setPartInstanceValue('previousPartEndState', previousPartEndState)
 	}
 
-	updatePartProps(props: Partial<IBlueprintMutatablePart>): boolean {
+	updatePartProps(props: Partial<PlayoutMutatablePart>): boolean {
 		// Future: this could do some better validation
 
 		// filter the submission to the allowed ones
-		const trimmedProps: Partial<IBlueprintMutatablePart> = filterPropsToAllowed(props)
+		const trimmedProps: Partial<PlayoutMutatablePart> = filterPropsToAllowed(props)
 		if (Object.keys(trimmedProps).length === 0) return false
 
-		this.#compareAndSetPartInstanceValue(
-			'part',
-			{
-				...this.partInstanceImpl.part,
-				...trimmedProps,
-			},
-			true
-		)
+		const newPart: DBPart = {
+			...this.partInstanceImpl.part,
+			...trimmedProps,
+			userEditOperations: this.partInstanceImpl.part.userEditOperations, // Replaced below if changed
+			userEditProperties: this.partInstanceImpl.part.userEditProperties,
+		}
+
+		// Only replace `userEditOperations` if new values were provided
+		if ('userEditOperations' in trimmedProps) newPart.userEditOperations = props.userEditOperations
+
+		this.#compareAndSetPartInstanceValue('part', newPart, true)
 
 		return true
 	}
@@ -588,8 +585,6 @@ export class PlayoutPartInstanceModelImpl implements PlayoutPartInstanceModel {
 	}
 }
 
-function filterPropsToAllowed(
-	props: Partial<IBlueprintMutatablePart<unknown>>
-): Partial<IBlueprintMutatablePart<unknown>> {
-	return _.pick(props, [...IBlueprintMutatablePartSampleKeys])
+function filterPropsToAllowed(props: Partial<PlayoutMutatablePart>): Partial<PlayoutMutatablePart> {
+	return _.pick(props, [...PlayoutMutatablePartSampleKeys])
 }

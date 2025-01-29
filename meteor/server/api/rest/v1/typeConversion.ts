@@ -19,7 +19,7 @@ import {
 	StudioId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { DBStudio, IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio'
-import { assertNever, getRandomId, literal } from '@sofie-automation/corelib/dist/lib'
+import { assertNever, Complete, getRandomId, literal } from '@sofie-automation/corelib/dist/lib'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import {
 	applyAndValidateOverrides,
@@ -53,7 +53,7 @@ import {
 	DEFAULT_FALLBACK_PART_DURATION,
 } from '@sofie-automation/shared-lib/dist/core/constants'
 import { Bucket } from '@sofie-automation/meteor-lib/dist/collections/Buckets'
-import { ForceQuickLoopAutoNext } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
+import { ForceQuickLoopAutoNext } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 
 /*
 This file contains functions that convert between the internal Sofie-Core types and types exposed to the external API.
@@ -307,13 +307,17 @@ export async function studioFrom(apiStudio: APIStudio, existingId?: StudioId): P
 			: convertObjectIntoOverrides(await StudioBlueprintConfigFromAPI(apiStudio, blueprintManifest))
 	}
 
+	const studioSettings = studioSettingsFrom(apiStudio.settings)
+
 	return {
 		_id: existingId ?? getRandomId(),
 		name: apiStudio.name,
 		blueprintId: blueprint?._id,
 		blueprintConfigPresetId: apiStudio.blueprintConfigPresetId,
 		blueprintConfigWithOverrides: blueprintConfig,
-		settings: studioSettingsFrom(apiStudio.settings),
+		settingsWithOverrides: studio
+			? updateOverrides(studio.settingsWithOverrides, studioSettings)
+			: wrapDefaultObject(studioSettings),
 		supportedShowStyleBase: apiStudio.supportedShowStyleBase?.map((id) => protectString<ShowStyleBaseId>(id)) ?? [],
 		organizationId: null,
 		mappingsWithOverrides: wrapDefaultObject({}),
@@ -324,6 +328,7 @@ export async function studioFrom(apiStudio: APIStudio, existingId?: StudioId): P
 		previewContainerIds: [],
 		thumbnailContainerIds: [],
 		peripheralDeviceSettings: {
+			deviceSettings: wrapDefaultObject({}),
 			playoutDevices: wrapDefaultObject({}),
 			ingestDevices: wrapDefaultObject({}),
 			inputDevices: wrapDefaultObject({}),
@@ -333,8 +338,8 @@ export async function studioFrom(apiStudio: APIStudio, existingId?: StudioId): P
 	}
 }
 
-export async function APIStudioFrom(studio: DBStudio): Promise<APIStudio> {
-	const studioSettings = APIStudioSettingsFrom(studio.settings)
+export async function APIStudioFrom(studio: DBStudio): Promise<Complete<APIStudio>> {
+	const studioSettings = APIStudioSettingsFrom(applyAndValidateOverrides(studio.settingsWithOverrides).obj)
 
 	return {
 		name: studio.name,
@@ -346,7 +351,7 @@ export async function APIStudioFrom(studio: DBStudio): Promise<APIStudio> {
 	}
 }
 
-export function studioSettingsFrom(apiStudioSettings: APIStudioSettings): IStudioSettings {
+export function studioSettingsFrom(apiStudioSettings: APIStudioSettings): Complete<IStudioSettings> {
 	return {
 		frameRate: apiStudioSettings.frameRate,
 		mediaPreviewsUrl: apiStudioSettings.mediaPreviewsUrl,
@@ -362,10 +367,16 @@ export function studioSettingsFrom(apiStudioSettings: APIStudioSettings): IStudi
 		enableQuickLoop: apiStudioSettings.enableQuickLoop,
 		forceQuickLoopAutoNext: forceQuickLoopAutoNextFrom(apiStudioSettings.forceQuickLoopAutoNext),
 		fallbackPartDuration: apiStudioSettings.fallbackPartDuration ?? DEFAULT_FALLBACK_PART_DURATION,
+		enableUserEdits: apiStudioSettings.enableUserEdits,
+		allowAdlibTestingSegment: apiStudioSettings.allowAdlibTestingSegment,
+		allowHold: apiStudioSettings.allowHold ?? true, // Backwards compatible
+		allowPieceDirectPlay: apiStudioSettings.allowPieceDirectPlay ?? true, // Backwards compatible
+		enableBuckets: apiStudioSettings.enableBuckets ?? true, // Backwards compatible
+		enableEvaluationForm: apiStudioSettings.enableEvaluationForm ?? true, // Backwards compatible
 	}
 }
 
-export function APIStudioSettingsFrom(settings: IStudioSettings): APIStudioSettings {
+export function APIStudioSettingsFrom(settings: IStudioSettings): Complete<APIStudioSettings> {
 	return {
 		frameRate: settings.frameRate,
 		mediaPreviewsUrl: settings.mediaPreviewsUrl,
@@ -381,6 +392,12 @@ export function APIStudioSettingsFrom(settings: IStudioSettings): APIStudioSetti
 		enableQuickLoop: settings.enableQuickLoop,
 		forceQuickLoopAutoNext: APIForceQuickLoopAutoNextFrom(settings.forceQuickLoopAutoNext),
 		fallbackPartDuration: settings.fallbackPartDuration,
+		enableUserEdits: settings.enableUserEdits,
+		allowAdlibTestingSegment: settings.allowAdlibTestingSegment,
+		allowHold: settings.allowHold,
+		allowPieceDirectPlay: settings.allowPieceDirectPlay,
+		enableBuckets: settings.enableBuckets,
+		enableEvaluationForm: settings.enableEvaluationForm,
 	}
 }
 

@@ -1,9 +1,9 @@
-@import 'colorScheme';
 
 $fullscreen-controls__button--radius: 3.125rem;
 
 $statusbar-width: 3.6rem;
 $notification-center-width: 25rem;
+$properties-panel-width: 550px;
 
 $browser-context: 16px; // Default browser font size in pixels
 
@@ -27,5 +27,5 @@ $segment-storyboard-thumbnail-height: 2.9rem;
 $portrait-mode-breakpoint: 35em;
 
 @function rem($pixels, $context: $browser-context) {
-	@return #{$pixels/$context}rem;
+	@return #{calc($pixels/$context)}rem;
 }
